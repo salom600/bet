@@ -1,0 +1,189 @@
+/* VideoEditor - Dark theme (2026 modern look)
+ * Inspired by DaVinci Resolve / Adobe Premiere dark themes with a cool accent.
+ */
+
+QWidget {
+    background-color: #16181c;
+    color: #e0e0e6;
+    font-family: "Inter", "Segoe UI", "SF Pro Text", "Noto Sans", sans-serif;
+    font-size: 11pt;
+}
+
+QMainWindow, QDialog {
+    background-color: #16181c;
+}
+
+/* Menus */
+QMenuBar {
+    background-color: #1c1f25;
+    color: #e0e0e6;
+    border-bottom: 1px solid #2a2d33;
+    padding: 2px;
+}
+QMenuBar::item {
+    padding: 4px 10px;
+    background: transparent;
+    border-radius: 3px;
+}
+QMenuBar::item:selected {
+    background-color: #2a2d33;
+}
+QMenu {
+    background-color: #1c1f25;
+    border: 1px solid #2a2d33;
+    border-radius: 4px;
+    padding: 4px;
+}
+QMenu::item {
+    padding: 6px 24px;
+    border-radius: 3px;
+}
+QMenu::item:selected {
+    background-color: #5ac8fa;
+    color: #000;
+}
+QMenu::separator {
+    height: 1px;
+    background: #2a2d33;
+    margin: 4px 8px;
+}
+
+/* Toolbar buttons */
+QPushButton {
+    background-color: #262931;
+    color: #e0e0e6;
+    border: 1px solid #2e323b;
+    border-radius: 4px;
+    padding: 6px 12px;
+    min-height: 18px;
+}
+QPushButton:hover {
+    background-color: #2e323d;
+    border-color: #3a3f4a;
+}
+QPushButton:pressed {
+    background-color: #5ac8fa;
+    color: #000;
+}
+QPushButton:checked {
+    background-color: #5ac8fa;
+    color: #000;
+}
+QPushButton:disabled {
+    background-color: #1d1f24;
+    color: #5a5d65;
+    border-color: #1d1f24;
+}
+
+/* Inputs */
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QPlainTextEdit {
+    background-color: #1d1f24;
+    color: #e0e0e6;
+    border: 1px solid #2e323b;
+    border-radius: 3px;
+    padding: 4px 6px;
+    selection-background-color: #5ac8fa;
+    selection-color: #000;
+}
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
+    border-color: #5ac8fa;
+}
+
+QDoubleSpinBox::up-button, QSpinBox::up-button,
+QDoubleSpinBox::down-button, QSpinBox::down-button {
+    background-color: #2e323d;
+    border: none;
+    width: 14px;
+}
+QDoubleSpinBox::up-button:hover, QSpinBox::up-button:hover,
+QDoubleSpinBox::down-button:hover, QSpinBox::down-button:hover {
+    background-color: #3a3f4a;
+}
+
+/* Group boxes */
+QGroupBox {
+    border: 1px solid #2a2d33;
+    border-radius: 4px;
+    margin-top: 10px;
+    padding-top: 6px;
+    font-weight: bold;
+    color: #b0b3bb;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 8px;
+    padding: 0 4px;
+}
+
+/* Scrollbars */
+QScrollBar:vertical {
+    background: #1d1f24;
+    width: 12px;
+    margin: 0;
+}
+QScrollBar::handle:vertical {
+    background: #3a3f4a;
+    border-radius: 4px;
+    min-height: 24px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #4a4f5a;
+}
+QScrollBar:horizontal {
+    background: #1d1f24;
+    height: 12px;
+    margin: 0;
+}
+QScrollBar::handle:horizontal {
+    background: #3a3f4a;
+    border-radius: 4px;
+    min-width: 24px;
+}
+QScrollBar::handle:horizontal:hover {
+    background: #4a4f5a;
+}
+QScrollBar::add-line, QScrollBar::sub-line,
+QScrollBar::add-page, QScrollBar::sub-page {
+    background: none;
+    border: none;
+    width: 0;
+    height: 0;
+}
+
+/* Scroll area background */
+QScrollArea, QScrollArea > QWidget > QWidget {
+    background-color: #16181c;
+}
+
+/* Splitter */
+QSplitter::handle {
+    background-color: #2a2d33;
+}
+QSplitter::handle:horizontal { width: 2px; }
+QSplitter::handle:vertical   { height: 2px; }
+
+/* Status bar */
+QStatusBar {
+    background-color: #1c1f25;
+    color: #8a8d96;
+    border-top: 1px solid #2a2d33;
+}
+
+/* Tooltips */
+QToolTip {
+    background-color: #1c1f25;
+    color: #e0e0e6;
+    border: 1px solid #2a2d33;
+    border-radius: 3px;
+    padding: 4px 6px;
+}
+
+/* Track header column */
+#trackHeaderColumn {
+    background-color: #1a1c20;
+    border-right: 1px solid #2a2d33;
+}
+
+/* Label variants */
+QLabel { color: #e0e0e6; }

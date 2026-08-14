@@ -1,0 +1,34 @@
+# Build output
+build/
+build-*/
+out/
+*.o
+*.obj
+*.exe
+*.dll
+*.lib
+*.so
+*.dylib
+
+# IDE / OS files
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln
+*.vcxproj*
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Third-party FFmpeg (downloaded at build time on Windows)
+third_party/ffmpeg/
+
+# Local artifacts
+*.veproj
