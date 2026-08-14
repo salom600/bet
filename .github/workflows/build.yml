@@ -93,12 +93,12 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          # Pin aqtinstall to 3.1.* (known to work with Qt 6.6/6.7/6.8)
-          pip install 'aqtinstall==3.1.*'
+          # Latest aqtinstall (3.2+) fixes the "bin/assistant.exe" path bug
+          # seen with Qt 6.7+ on Windows.
+          pip install --upgrade aqtinstall
           $qtDir = "$PWD\Qt"
           New-Item -ItemType Directory -Force -Path $qtDir | Out-Null
-          # List available versions for diagnostics, then install 6.8.1 (current LTS)
-          python -m aqt list-qt windows desktop
+          # Install Qt 6.8.1 (LTS) for MSVC 2022 x64
           $qtVersion = "6.8.1"
           Write-Host "Installing Qt $qtVersion ..."
           python -m aqt install-qt windows desktop $qtVersion win64_msvc2022_64 --outputdir $qtDir

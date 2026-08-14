@@ -1,4 +1,5 @@
 #include "model/BinFolder.h"
+#include "model/BinClip.h"
 
 namespace ve {
 
