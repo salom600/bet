@@ -2,6 +2,8 @@
 
 #include "../../definitions.h"
 #include <QWidget>
+#include <QLabel>
+#include <QPushButton>
 
 namespace ve {
 
@@ -19,11 +21,11 @@ private slots:
     void onChanged();
 
 private:
-    TrackModel* track_;
-    class QLabel*     name_;
-    class QPushButton* btnMute_;
-    class QPushButton* btnHide_;
-    class QPushButton* btnLock_;
+    TrackModel*   track_;
+    QLabel*       name_;
+    QPushButton*  btnMute_;
+    QPushButton*  btnHide_;
+    QPushButton*  btnLock_;
 };
 
 } // namespace ve
