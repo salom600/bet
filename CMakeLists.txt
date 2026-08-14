@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.20)
 
-# ---- Project definition ------------------------------------------------------
 project(VideoEditor
-    VERSION 0.1.0
+    VERSION 0.2.0
     LANGUAGES CXX
-    DESCRIPTION "Cross-platform video editor (Linux + Windows)"
+    DESCRIPTION "Cross-platform video editor (Linux + Windows) - Kdenlive-inspired architecture"
 )
 
 set(CMAKE_CXX_STANDARD 17)
@@ -14,8 +13,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-# ---- Output directories ------------------------------------------------------
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 endif()
@@ -25,15 +24,12 @@ endif()
 
 # ---- Find Qt6 ----------------------------------------------------------------
 find_package(Qt6 REQUIRED COMPONENTS Widgets Concurrent)
-# qt_standard_project_setup() requires Qt 6.3+; we set the same vars manually
-# for compatibility with Ubuntu 22.04 (which ships Qt 6.2).
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # ---- Find FFmpeg -------------------------------------------------------------
-# Try pkg-config first (Linux), then fall back to manual hint lookup (Windows)
 find_package(PkgConfig QUIET)
 set(FFMPEG_FOUND FALSE)
 if(PkgConfig_FOUND)
@@ -50,7 +46,6 @@ if(PkgConfig_FOUND)
 endif()
 
 if(NOT FFMPEG_FOUND)
-    # Manual fallback for prebuilt FFmpeg on Windows
     set(FFMPEG_ROOT "${CMAKE_SOURCE_DIR}/third_party/ffmpeg" CACHE PATH "Path to FFmpeg root")
     if(EXISTS "${FFMPEG_ROOT}/include")
         set(FFMPEG_INCLUDE_DIR "${FFMPEG_ROOT}/include")
@@ -80,8 +75,6 @@ file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
 )
-
-# Exclude main.cpp from any future library target
 list(FILTER APP_SOURCES EXCLUDE REGEX "/main\\.cpp$")
 
 qt_add_executable(VideoEditor
@@ -100,7 +93,6 @@ target_link_libraries(VideoEditor PRIVATE
     ${FFMPEG_LIBS}
 )
 
-# Windows: copy FFmpeg DLLs next to the executable so the app runs out-of-the-box
 if(WIN32 AND FFMPEG_BIN_DIR AND EXISTS "${FFMPEG_BIN_DIR}")
     add_custom_command(TARGET VideoEditor POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -110,18 +102,12 @@ if(WIN32 AND FFMPEG_BIN_DIR AND EXISTS "${FFMPEG_BIN_DIR}")
     )
 endif()
 
-# ---- Qt resource files -------------------------------------------------------
-qt_add_resources(APP_QRC
-    resources/resources.qrc
-)
+qt_add_resources(APP_QRC resources/resources.qrc)
 target_sources(VideoEditor PRIVATE ${APP_QRC})
 
-# ---- Install rules -----------------------------------------------------------
 install(TARGETS VideoEditor RUNTIME DESTINATION bin)
-install(DIRECTORY resources/styles DESTINATION share/VideoEditor)
 
-# ---- Print configuration summary --------------------------------------------
-message(STATUS "== VideoEditor ${PROJECT_VERSION} ==")
+message(STATUS "== VideoEditor ${PROJECT_VERSION} (Kdenlive-inspired) ==")
 message(STATUS "  Qt6 version: ${Qt6Widgets_VERSION}")
 message(STATUS "  Compiler:    ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "  Platform:    ${CMAKE_SYSTEM_NAME} (${CMAKE_SYSTEM_PROCESSOR})")

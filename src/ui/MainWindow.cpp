@@ -1,15 +1,22 @@
+/*
+ * VideoEditor - MainWindow.cpp
+ */
 #include "ui/MainWindow.h"
-#include "ui/Toolbar.h"
-#include "ui/PreviewWidget.h"
-#include "ui/TimelineWidget.h"
-#include "ui/PropertiesPanel.h"
-#include "core/Command.h"
-#include "core/Project.h"
-#include "core/Timeline.h"
-#include "core/Track.h"
-#include "core/Clip.h"
-#include "media/MediaDecoder.h"
-#include "utils/JsonSerializer.h"
+#include "ui/toolbar/Toolbar.h"
+#include "ui/bin/BinWidget.h"
+#include "ui/bin/ClipMonitorWidget.h"
+#include "ui/monitor/ProjectMonitor.h"
+#include "ui/monitor/MonitorManager.h"
+#include "ui/timeline2/TimelineWidget.h"
+#include "ui/effects/EffectStackView.h"
+#include "ui/properties/PropertiesPanel.h"
+#include "project/Project.h"
+#include "project/ProjectSerializer.h"
+#include "project/ProfileRepository.h"
+#include "model/TimelineModel.h"
+#include "model/TrackModel.h"
+#include "model/ClipModel.h"
+#include "model/BinClip.h"
 
 #include <QApplication>
 #include <QMenuBar>
@@ -28,58 +35,23 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QLabel>
-#include <QProgressDialog>
-#include <QFutureWatcher>
-#include <QtConcurrent/QtConcurrentRun>
+#include <QProcess>
 #include <QStandardPaths>
 #include <QDir>
 #include <QDateTime>
 #include <QDebug>
-#include <QPainter>
-#include <QProcess>
 
 namespace ve {
-
-static const QStringList VIDEO_EXTS = { "mp4", "mov", "mkv", "avi", "webm", "m4v" };
-static const QStringList IMAGE_EXTS = { "png", "jpg", "jpeg", "bmp", "webp" };
-static const QStringList AUDIO_EXTS = { "mp3", "wav", "aac", "flac", "ogg", "m4a" };
-
-static bool hasExt(const QString& path, const QStringList& exts) {
-    const QString ext = QFileInfo(path).suffix().toLower();
-    return exts.contains(ext);
-}
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , project_(new Project(this))
-    , undoStack_(new QUndoStack(this))
 {
-    setMinimumSize(1280, 800);
-    setupActions();
-    setupUi();
+    setMinimumSize(1440, 900);
+    setupUi();        // creates child widgets first
+    setupActions();   // then wires actions to those widgets
     setupMenus();
     updateWindowTitle();
-
-    // Wire undo stack → dirty + window title
-    connect(undoStack_, &QUndoStack::indexChanged, this, [this]() {
-        project_->setDirty(true);
-        updateWindowTitle();
-    });
-
-    // Wire timeline selection → properties panel
-    connect(timeline_, &TimelineWidget::clipSelected, properties_, &PropertiesPanel::setClip);
-    connect(timeline_, &TimelineWidget::clipSelected, preview_, &PreviewWidget::setSelectedClip);
-
-    // Wire timeline playhead → preview
-    connect(timeline_, &TimelineWidget::playheadChanged, preview_, &PreviewWidget::setPlayhead);
-    connect(preview_, &PreviewWidget::playheadMoved, timeline_, &TimelineWidget::setPlayhead);
-
-    // Playback sync
-    connect(preview_, &PreviewWidget::playbackTicked, timeline_, &TimelineWidget::setPlayhead);
-
-    // Keyboard shortcuts handled by actions below.
-    setAcceptDrops(true);
-    statusBar()->showMessage("Ready. Drag media files here, or use File → Import.");
 }
 
 void MainWindow::setupActions() {
@@ -113,9 +85,9 @@ void MainWindow::setupActions() {
     actExport_->setShortcut(QKeySequence("Ctrl+E"));
     connect(actExport_, &QAction::triggered, this, &MainWindow::exportProject);
 
-    actUndo_ = undoStack_->createUndoAction(this, "&Undo");
+    actUndo_ = project_->undoStack()->createUndoAction(this, "&Undo");
     actUndo_->setShortcut(QKeySequence::Undo);
-    actRedo_ = undoStack_->createRedoAction(this, "&Redo");
+    actRedo_ = project_->undoStack()->createRedoAction(this, "&Redo");
     actRedo_->setShortcut(QKeySequence::Redo);
 
     actDelete_ = new QAction("&Delete Selected Clip", this);
@@ -126,26 +98,45 @@ void MainWindow::setupActions() {
     actPlay_ = new QAction(QIcon::fromTheme(QStringLiteral("media-playback-start")), "Play/Pause", this);
     actPlay_->setShortcut(QKeySequence(Qt::Key_Space));
     actPlay_->setShortcutContext(Qt::ApplicationShortcut);
-    connect(actPlay_, &QAction::triggered, preview_, &PreviewWidget::togglePlay);
+    connect(actPlay_, &QAction::triggered, projectMonitor_, &ProjectMonitor::togglePlay);
 }
 
 void MainWindow::setupUi() {
-    toolbar_    = new Toolbar(this);
-    preview_    = new PreviewWidget(project_, this);
-    timeline_   = new TimelineWidget(project_, undoStack_, this);
-    properties_ = new PropertiesPanel(undoStack_, this);
+    toolbar_       = new Toolbar(this);
+    binWidget_     = new BinWidget(project_->bin(), this);
+    clipMonitor_   = new ClipMonitorWidget(project_->bin(), this);
+    projectMonitor_ = new ProjectMonitor(project_, this);
+    monitorManager_ = new MonitorManager(clipMonitor_, projectMonitor_, this);
+    timeline_      = new TimelineWidget(project_, this);
+    effectStack_   = new EffectStackView(project_->undoStack(), this);
+    properties_    = new PropertiesPanel(this);
+
+    // Layout: top row = clip monitor + project monitor; bottom row = timeline
+    auto* topRow = new QSplitter(Qt::Horizontal);
+    topRow->addWidget(clipMonitor_);
+    topRow->addWidget(projectMonitor_);
+    topRow->setStretchFactor(0, 1);
+    topRow->setStretchFactor(1, 1);
+
+    auto* leftSplit = new QSplitter(Qt::Vertical);
+    leftSplit->addWidget(binWidget_);
+    leftSplit->addWidget(effectStack_);
+    leftSplit->setStretchFactor(0, 2);
+    leftSplit->setStretchFactor(1, 1);
 
     auto* rightSplit = new QSplitter(Qt::Vertical);
-    rightSplit->addWidget(preview_);
+    rightSplit->addWidget(topRow);
     rightSplit->addWidget(properties_);
     rightSplit->setStretchFactor(0, 3);
     rightSplit->setStretchFactor(1, 1);
 
     auto* mainSplit = new QSplitter(Qt::Horizontal);
+    mainSplit->addWidget(leftSplit);
     mainSplit->addWidget(rightSplit);
     mainSplit->addWidget(timeline_);
-    mainSplit->setStretchFactor(0, 3);
-    mainSplit->setStretchFactor(1, 5);
+    mainSplit->setStretchFactor(0, 1);
+    mainSplit->setStretchFactor(1, 3);
+    mainSplit->setStretchFactor(2, 4);
 
     auto* central = new QWidget;
     auto* v = new QVBoxLayout(central);
@@ -156,37 +147,56 @@ void MainWindow::setupUi() {
 
     setCentralWidget(central);
 
-    // Wire toolbar buttons
+    // Wire bin → clip monitor
+    connect(binWidget_, &BinWidget::clipActivated, clipMonitor_, &ClipMonitorWidget::loadBinClip);
+    // Wire bin drag → timeline drop
+    connect(binWidget_, &BinWidget::clipDroppedOnTimeline, this,
+        [this](const QString& binClipId, int position) {
+            // Insert on first track of matching type
+            auto bc = project_->bin()->clip(binClipId);
+            if (!bc) return;
+            TrackType tt = TrackType::Video;
+            if (bc->type() == ClipType::Audio) tt = TrackType::Audio;
+            else if (bc->type() == ClipType::Image) tt = TrackType::Image;
+            for (ObjectId tid : project_->timeline()->trackIds()) {
+                auto t = project_->timeline()->track(tid);
+                if (t && t->type() == tt) {
+                    project_->timeline()->requestClipInsertion(binClipId, tid, position);
+                    break;
+                }
+            }
+        });
+
+    // Wire timeline selection → properties + effect stack
+    connect(timeline_, &TimelineWidget::clipSelected, properties_, &PropertiesPanel::setClip);
+    connect(timeline_, &TimelineWidget::clipSelected, effectStack_, &EffectStackView::setClip);
+    connect(timeline_, &TimelineWidget::clipSelected, monitorManager_, &MonitorManager::onTimelineSelectionChanged);
+
+    // Wire timeline playhead → project monitor
+    connect(timeline_, &TimelineWidget::playheadChanged, projectMonitor_, &ProjectMonitor::setPlayhead);
+    connect(projectMonitor_, &ProjectMonitor::playheadMoved, timeline_, &TimelineWidget::setPlayhead);
+    connect(projectMonitor_, &ProjectMonitor::playbackTicked, timeline_, &TimelineWidget::setPlayhead);
+
+    // Toolbar
     connect(toolbar_, &Toolbar::importClicked, actImport_, &QAction::trigger);
     connect(toolbar_, &Toolbar::exportClicked, actExport_, &QAction::trigger);
-    connect(toolbar_, &Toolbar::playClicked,    preview_, &PreviewWidget::togglePlay);
-    connect(toolbar_, &Toolbar::stopClicked,    preview_, &PreviewWidget::stop);
-    connect(toolbar_, &Toolbar::skipStartClicked, preview_, &PreviewWidget::skipToStart);
-    connect(toolbar_, &Toolbar::skipEndClicked,   preview_, &PreviewWidget::skipToEnd);
+    connect(toolbar_, &Toolbar::playClicked, projectMonitor_, &ProjectMonitor::togglePlay);
+    connect(toolbar_, &Toolbar::stopClicked, projectMonitor_, &ProjectMonitor::stop);
+    connect(toolbar_, &Toolbar::skipStartClicked, projectMonitor_, &ProjectMonitor::skipToStart);
+    connect(toolbar_, &Toolbar::skipEndClicked, projectMonitor_, &ProjectMonitor::skipToEnd);
     connect(toolbar_, &Toolbar::undoClicked, actUndo_, &QAction::trigger);
     connect(toolbar_, &Toolbar::redoClicked, actRedo_, &QAction::trigger);
-    connect(toolbar_, &Toolbar::addVideoTrack, this, [this]() {
-        undoStack_->push(new LambdaCommand(
-            "Add Video Track",
-            [this]() { project_->timeline()->addTrack(Track::Kind::Video); },
-            [this]() {
-                auto& ts = project_->timeline()->tracks();
-                if (!ts.isEmpty()) project_->timeline()->removeTrack(ts.last());
-            }
-        ));
-    });
-    connect(toolbar_, &Toolbar::addAudioTrack, this, [this]() {
-        undoStack_->push(new LambdaCommand(
-            "Add Audio Track",
-            [this]() { project_->timeline()->addTrack(Track::Kind::Audio); },
-            [this]() {
-                auto& ts = project_->timeline()->tracks();
-                if (!ts.isEmpty()) project_->timeline()->removeTrack(ts.last());
-            }
-        ));
-    });
     connect(toolbar_, &Toolbar::zoomIn,  timeline_, &TimelineWidget::zoomIn);
     connect(toolbar_, &Toolbar::zoomOut, timeline_, &TimelineWidget::zoomOut);
+
+    // Undo stack → dirty
+    connect(project_->undoStack(), &QUndoStack::indexChanged, this, [this]() {
+        project_->setDirty(true);
+        updateWindowTitle();
+    });
+
+    setAcceptDrops(true);
+    statusBar()->showMessage("Ready. Drag media files here, or use File → Import.");
 }
 
 void MainWindow::setupMenus() {
@@ -200,8 +210,8 @@ void MainWindow::setupMenus() {
     fileMenu->addSeparator();
     fileMenu->addAction(actExport_);
     fileMenu->addSeparator();
-    fileMenu->addAction(QIcon::fromTheme(QStringLiteral("application-exit")), "&Quit", qApp, &QApplication::quit,
-                        QKeySequence::Quit);
+    fileMenu->addAction(QIcon::fromTheme(QStringLiteral("application-exit")), "&Quit",
+                        qApp, &QApplication::quit, QKeySequence::Quit);
 
     auto* editMenu = menuBar()->addMenu("&Edit");
     editMenu->addAction(actUndo_);
@@ -216,8 +226,10 @@ void MainWindow::setupMenus() {
     auto* helpMenu = menuBar()->addMenu("&Help");
     helpMenu->addAction("&About", this, [this]() {
         QMessageBox::information(this, "About VideoEditor",
-            "<b>VideoEditor 0.1</b><br><br>"
-            "Cross-platform C++/Qt6/FFmpeg video editor.<br><br>"
+            "<b>VideoEditor 0.2</b><br><br>"
+            "Cross-platform C++/Qt6/FFmpeg video editor, redesigned with "
+            "Kdenlive-inspired architecture: Bin/Timeline split, "
+            "EffectStackModel, lambda undo, XML project format.<br><br>"
             "Shortcuts:<br>"
             "Space - play/pause<br>"
             "Delete - delete selected clip<br>"
@@ -229,28 +241,24 @@ void MainWindow::setupMenus() {
 }
 
 void MainWindow::updateWindowTitle() {
-    QString name = project_->filePath().isEmpty()
-        ? "Untitled"
+    QString name = project_->filePath().isEmpty() ? "Untitled"
         : QFileInfo(project_->filePath()).completeBaseName();
     setWindowTitle(QStringLiteral("%1%2 - VideoEditor")
-                       .arg(name, project_->isDirty() ? " *" : ""));
+        .arg(name, project_->isDirty() ? " *" : ""));
 }
 
-// ---------------------------------------------------------------------------
-// Project file ops
-// ---------------------------------------------------------------------------
 void MainWindow::newProject() {
     if (project_->isDirty()) {
-        auto r = QMessageBox::question(this, "New Project",
-            "Discard unsaved changes?");
+        auto r = QMessageBox::question(this, "New Project", "Discard unsaved changes?");
         if (r != QMessageBox::Yes) return;
     }
     delete project_;
     project_ = new Project(this);
-    undoStack_->clear();
     timeline_->setProject(project_);
-    preview_->setProject(project_);
+    binWidget_->setBin(project_->bin());
+    projectMonitor_->setProject(project_);
     properties_->setClip(nullptr);
+    effectStack_->setClip(nullptr);
     updateWindowTitle();
 }
 
@@ -259,25 +267,23 @@ void MainWindow::loadProject() {
         this, "Open Project", QString(), "VideoEditor Project (*.veproj)");
     if (path.isEmpty()) return;
     QString err;
-    if (!JsonSerializer::load(project_, path, &err)) {
+    if (!ProjectSerializer::load(project_, path, &err)) {
         QMessageBox::warning(this, "Open failed", err);
         return;
     }
-    undoStack_->clear();
     timeline_->setProject(project_);
-    preview_->setProject(project_);
+    binWidget_->setBin(project_->bin());
+    projectMonitor_->setProject(project_);
     properties_->setClip(nullptr);
+    effectStack_->setClip(nullptr);
     project_->setDirty(false);
     updateWindowTitle();
 }
 
 void MainWindow::saveProject() {
-    if (project_->filePath().isEmpty()) {
-        saveProjectAs();
-        return;
-    }
+    if (project_->filePath().isEmpty()) { saveProjectAs(); return; }
     QString err;
-    if (!JsonSerializer::save(project_, project_->filePath(), &err)) {
+    if (!ProjectSerializer::save(project_, project_->filePath(), &err)) {
         QMessageBox::warning(this, "Save failed", err);
         return;
     }
@@ -290,14 +296,10 @@ void MainWindow::saveProjectAs() {
         this, "Save Project As", QString(), "VideoEditor Project (*.veproj)");
     if (path.isEmpty()) return;
     QString p = path;
-    if (!QFileInfo(p).suffix().isEmpty() && QFileInfo(p).suffix().toLower() != "veproj") {
-        // keep extension as-is
-    } else if (!p.endsWith(".veproj", Qt::CaseInsensitive)) {
-        p += ".veproj";
-    }
+    if (!p.endsWith(".veproj", Qt::CaseInsensitive)) p += ".veproj";
     project_->setFilePath(p);
     QString err;
-    if (!JsonSerializer::save(project_, p, &err)) {
+    if (!ProjectSerializer::save(project_, p, &err)) {
         QMessageBox::warning(this, "Save failed", err);
         return;
     }
@@ -305,163 +307,71 @@ void MainWindow::saveProjectAs() {
     updateWindowTitle();
 }
 
-// ---------------------------------------------------------------------------
-// Media import
-// ---------------------------------------------------------------------------
 void MainWindow::importFiles(const QStringList& files) {
     for (const QString& f : files) {
-        const QString ext = QFileInfo(f).suffix().toLower();
-        MediaType type = MediaType::Video;
-        Track::Kind targetKind = Track::Kind::Video;
-        if (VIDEO_EXTS.contains(ext)) {
-            type = MediaType::Video;
-            targetKind = Track::Kind::Video;
-        } else if (IMAGE_EXTS.contains(ext)) {
-            type = MediaType::Image;
-            targetKind = Track::Kind::Image;
-        } else if (AUDIO_EXTS.contains(ext)) {
-            type = MediaType::Audio;
-            targetKind = Track::Kind::Audio;
-        } else {
-            qWarning() << "Unknown extension, skipping:" << f;
-            continue;
-        }
-
-        // Probe for duration / dimensions
-        MediaInfo info = MediaDecoder::probe(f);
-        double dur = info.duration > 0 ? info.duration : 5.0;
-        if (type == MediaType::Image) dur = 5.0; // default 5s stills
-
-        // Find first track of the matching kind
-        Track* target = nullptr;
-        for (Track* t : project_->timeline()->tracks()) {
-            if (t->kind() == targetKind) { target = t; break; }
-        }
-        if (!target) {
-            target = project_->timeline()->addTrack(targetKind);
-        }
-
-        // Place clip at end of track
-        double placeAt = 0.0;
-        for (Clip* c : target->clips()) {
-            double end = c->timelineStart() + c->duration();
-            if (end > placeAt) placeAt = end;
-        }
-
-        auto* clip = new Clip;
-        clip->setSourcePath(f);
-        clip->setType(type);
-        clip->setSourceIn(0.0);
-        clip->setSourceOut(dur);
-        clip->setTimelineStart(placeAt);
-        target->addClip(clip);
-
-        maybeGenerateThumbnailsForNewClip(clip);
-        project_->setDirty(true);
+        project_->bin()->addClip(f);
     }
+    project_->setDirty(true);
     updateWindowTitle();
     statusBar()->showMessage(QStringLiteral("Imported %1 file(s).").arg(files.size()), 4000);
 }
 
-void MainWindow::maybeGenerateThumbnailsForNewClip(Clip* clip) {
-    // Generate thumbnail off the UI thread
-    const QString path = clip->sourcePath();
-    const MediaType type = clip->type();
-    Clip* clipPtr = clip;
-    auto* watcher = new QFutureWatcher<QImage>(this);
-    connect(watcher, &QFutureWatcher<QImage>::finished, this, [watcher, clipPtr, type]() {
-        QImage img = watcher->result();
-        if (!img.isNull()) clipPtr->setThumbnail(img);
-        if (type == MediaType::Audio) {
-            // Waveform thumb can be generated separately; for now leave empty
-        }
-        watcher->deleteLater();
-    });
-    if (type == MediaType::Video) {
-        watcher->setFuture(QtConcurrent::run([path]() {
-            MediaDecoder dec;
-            if (!dec.open(path)) return QImage();
-            return dec.grabFrame(0.5, 160, 90);
-        }));
-    } else if (type == MediaType::Image) {
-        watcher->setFuture(QtConcurrent::run([path]() {
-            QImage img(path);
-            if (!img.isNull()) return img.scaled(160, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-            return QImage();
-        }));
-    } else {
-        // Audio: render waveform
-        watcher->setFuture(QtConcurrent::run([path]() -> QImage {
-            MediaDecoder dec;
-            if (!dec.open(path)) return QImage();
-            auto peaks = dec.audioPeaks(200);
-            QImage img(200, 60, QImage::Format_ARGB32);
-            img.fill(Qt::transparent);
-            QPainter p(&img);
-            p.setPen(QColor(80, 200, 255));
-            for (int i = 0; i < (int)peaks.size(); ++i) {
-                int h = std::clamp(static_cast<int>(peaks[i] * img.height()), 0, img.height());
-                int y0 = (img.height() - h) / 2;
-                p.drawLine(i, y0, i, y0 + h);
-            }
-            return img;
-        }));
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Export / Render
-// ---------------------------------------------------------------------------
 void MainWindow::exportProject() {
     const QString defaultName = QStringLiteral("export_%1.mp4")
         .arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
-    const QString defaultDir = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation);
+    QString defaultDir = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation);
     if (defaultDir.isEmpty() || !QDir(defaultDir).exists()) {
         QDir().mkpath(QDir::homePath() + "/VideoEditorExports");
+        defaultDir = QDir::homePath() + "/VideoEditorExports";
     }
-    const QString startDir = (defaultDir.isEmpty() ? QDir::homePath() + "/VideoEditorExports" : defaultDir)
-        + "/" + defaultName;
     const QString out = QFileDialog::getSaveFileName(
-        this, "Export Video", startDir, "MP4 Video (*.mp4)");
+        this, "Export Video", defaultDir + "/" + defaultName, "MP4 Video (*.mp4)");
     if (out.isEmpty()) return;
 
-    // Use ffmpeg CLI as a simple, robust render path. Build an edit decision
-    // list from the timeline and pass it to ffmpeg via filter_complex.
+    // Build ffmpeg command: concat clips from the first video track.
+    auto tl = project_->timeline();
+    auto bin = project_->bin();
     QStringList args;
     args << "-y";
 
     // Collect unique source files
     QMap<QString, int> sourceIndex;
-    QList<QString> sourcesInOrder;
-    for (Track* t : project_->timeline()->tracks()) {
-        for (Clip* c : t->clips()) {
-            if (!sourceIndex.contains(c->sourcePath())) {
-                sourceIndex[c->sourcePath()] = sourcesInOrder.size();
-                sourcesInOrder.append(c->sourcePath());
-                args << "-i" << c->sourcePath();
-            }
+    QStringList sourcesInOrder;
+    for (ObjectId tid : tl->trackIds()) {
+        auto t = tl->track(tid);
+        if (!t || t->type() == TrackType::Audio) continue;
+        for (ObjectId clipId : t->clipIds()) {
+            auto c = tl->clip(clipId);
+            if (!c) continue;
+            QString path = c->binClip() ? c->binClip()->sourcePath() : QString();
+            if (path.isEmpty() || sourceIndex.contains(path)) continue;
+            sourceIndex[path] = sourcesInOrder.size();
+            sourcesInOrder.append(path);
+            args << "-i" << path;
         }
     }
     if (sourcesInOrder.isEmpty()) {
-        QMessageBox::information(this, "Export", "Timeline is empty; nothing to export.");
+        QMessageBox::information(this, "Export", "No video/image clips on the timeline.");
         return;
     }
 
-    // Build filter_complex: for each clip, trim from source and place on a
-    // numbered video/audio stream. Concatenate them in timeline order on
-    // a per-track basis, then overlay / mix across tracks.
-    // For "basics" we render the first video-track chain concatenated.
+    // Build filter_complex: concat in timeline order
     QStringList filters;
     QStringList concatInputs;
     int streamIdx = 0;
-    for (Track* t : project_->timeline()->tracks()) {
-        if (t->kind() == Track::Kind::Audio) continue;
-        for (Clip* c : t->clips()) {
-            int src = sourceIndex[c->sourcePath()];
-            double in  = c->sourceIn();
-            double dur = c->duration();
-            if (c->type() == MediaType::Image) {
-                filters << QStringLiteral("[%1:d]trim=duration=%2,setpts=PTS-STARTPTS[v%3];")
+    for (ObjectId tid : tl->trackIds()) {
+        auto t = tl->track(tid);
+        if (!t || t->type() == TrackType::Audio) continue;
+        for (ObjectId clipId : t->clipsSorted()) {
+            auto c = tl->clip(clipId);
+            if (!c) continue;
+            auto bc = c->binClip();
+            if (!bc) continue;
+            int src = sourceIndex[bc->sourcePath()];
+            double in  = tl->framesToSeconds(c->getIn());
+            double dur = tl->framesToSeconds(c->getPlaytime());
+            if (bc->type() == ClipType::Image) {
+                filters << QStringLiteral("[%1:v]trim=duration=%2,setpts=PTS-STARTPTS[v%3];")
                             .arg(src).arg(dur, 0, 'f', 3).arg(streamIdx);
             } else {
                 filters << QStringLiteral("[%1:v]trim=start=%2:end=%3,setpts=PTS-STARTPTS[v%4];")
@@ -480,31 +390,17 @@ void MainWindow::exportProject() {
             .arg(concatInputs.join("")).arg(concatInputs.size());
     args << "-filter_complex" << filter << "-map" << "[outv]";
 
-    // Encoding settings
     args << "-c:v" << "libx264"
          << "-pix_fmt" << "yuv420p"
-         << "-r" << QString::number(project_->exportFps())
-         << "-b:v" << QStringLiteral("%1k").arg(project_->exportBitrateKbps())
-         << "-s" << QStringLiteral("%1x%2").arg(project_->exportWidth()).arg(project_->exportHeight())
+         << "-r" << QString::number(project_->profile().fps())
+         << "-b:v" << "8000k"
+         << "-s" << QStringLiteral("%1x%2").arg(project_->profile().width).arg(project_->profile().height)
          << out;
-
-    // Show progress dialog while running
-    auto* prog = new QProgressDialog("Rendering…", "Cancel", 0, 0, this);
-    prog->setWindowModality(Qt::ApplicationModal);
-    prog->setCancelButton(nullptr);
-    prog->setMinimumDuration(0);
-    prog->setValue(0);
-    prog->setLabelText(QStringLiteral("Running: ffmpeg %1").arg(args.join(" ")));
 
     auto* proc = new QProcess(this);
     proc->setProcessChannelMode(QProcess::MergedChannels);
-    connect(proc, &QProcess::readyReadStandardOutput, this, [prog, proc]() {
-        prog->setLabelText(proc->readAllStandardOutput().trimmed().mid(0, 200));
-    });
     connect(proc, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
-            [this, prog, proc, out](int code, QProcess::ExitStatus) {
-        prog->close();
-        prog->deleteLater();
+            [this, proc, out](int code, QProcess::ExitStatus) {
         if (code == 0) {
             QMessageBox::information(this, "Export complete",
                 QStringLiteral("Saved to:\n%1").arg(out));
@@ -515,18 +411,12 @@ void MainWindow::exportProject() {
         }
         proc->deleteLater();
     });
-
     QString ffmpegExe = qEnvironmentVariable("FFMPEG_BINARY", "ffmpeg");
     proc->start(ffmpegExe, args);
 }
 
-// ---------------------------------------------------------------------------
-// Drag & drop
-// ---------------------------------------------------------------------------
 void MainWindow::dragEnterEvent(QDragEnterEvent* e) {
-    if (e->mimeData()->hasUrls()) {
-        e->acceptProposedAction();
-    }
+    if (e->mimeData()->hasUrls()) e->acceptProposedAction();
 }
 
 void MainWindow::dropEvent(QDropEvent* e) {
@@ -540,8 +430,7 @@ void MainWindow::dropEvent(QDropEvent* e) {
 
 void MainWindow::closeEvent(QCloseEvent* e) {
     if (project_->isDirty()) {
-        auto r = QMessageBox::question(this, "Quit",
-            "Discard unsaved changes and quit?");
+        auto r = QMessageBox::question(this, "Quit", "Discard unsaved changes and quit?");
         if (r != QMessageBox::Yes) { e->ignore(); return; }
     }
     e->accept();
