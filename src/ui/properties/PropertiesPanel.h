@@ -1,6 +1,11 @@
 #pragma once
 
 #include <QWidget>
+#include <QVBoxLayout>
+#include <QFormLayout>
+#include <QLabel>
+#include <QScrollArea>
+#include <QDoubleSpinBox>
 
 namespace ve {
 
@@ -18,13 +23,13 @@ public slots:
 
 private:
     ClipModel* clip_ = nullptr;
-    class QLabel* header_;
-    class QFormLayout* form_;
-    class QWidget* content_;
-    class QScrollArea* scroll_;
-    class QVBoxLayout* layout_;
-    class QDoubleSpinBox* start_;
-    class QDoubleSpinBox* duration_;
+    QLabel*           header_;
+    QFormLayout*      form_;
+    QWidget*          content_;
+    QScrollArea*      scroll_;
+    QVBoxLayout*      layout_;
+    QDoubleSpinBox*   start_;
+    QDoubleSpinBox*   duration_;
 };
 
 } // namespace ve

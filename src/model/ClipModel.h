@@ -59,10 +59,11 @@ public:
 signals:
     void changed();
 
-private:
+public:
     ClipModel(TimelineModel* parent, const QString& binClipId, ObjectId id,
               ClipState state, double speed);
 
+private:
     QString m_binClipId;
     ClipState m_state = ClipState::Unknown;
     double    m_speed = 1.0;

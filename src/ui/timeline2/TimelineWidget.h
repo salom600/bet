@@ -2,6 +2,8 @@
 
 #include <QWidget>
 #include <QUndoStack>
+#include <QVBoxLayout>
+#include <QScrollArea>
 #include <unordered_map>
 #include "definitions.h"
 
@@ -49,7 +51,7 @@ private:
     void setupUi();
     void rebuildTracks();
     void ensureTimelineWidthFits();
-    class ClipModel* tl_model_clip(int cid);
+    ClipModel* tl_model_clip(int cid);
 
     Project* project_ = nullptr;
 
@@ -57,14 +59,14 @@ private:
     int    headerWidth_ = 130;
     int    trackHeight_ = 70;
 
-    QWidget*           leftHeader_      = nullptr;
-    class QVBoxLayout* leftHeaderLayout_ = nullptr;
-    class QWidget*     rightArea_       = nullptr;
-    class QVBoxLayout* rightLayout_     = nullptr;
-    TimelineRuler*     ruler_           = nullptr;
-    class QScrollArea* scrollArea_      = nullptr;
-    QWidget*           tracksContainer_ = nullptr;
-    class QVBoxLayout* tracksLayout_    = nullptr;
+    QWidget*      leftHeader_       = nullptr;
+    QVBoxLayout*  leftHeaderLayout_ = nullptr;
+    QWidget*      rightArea_        = nullptr;
+    QVBoxLayout*  rightLayout_      = nullptr;
+    TimelineRuler* ruler_           = nullptr;
+    QScrollArea*  scrollArea_       = nullptr;
+    QWidget*      tracksContainer_  = nullptr;
+    QVBoxLayout*  tracksLayout_     = nullptr;
 };
 
 } // namespace ve

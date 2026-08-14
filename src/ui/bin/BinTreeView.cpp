@@ -4,6 +4,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QModelIndex>
+#include <QHeaderView>
 
 namespace ve {
 
