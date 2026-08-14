@@ -34,7 +34,7 @@ jobs:
             libx11-dev libx11-xcb-dev libxext-dev libxfixes-dev \
             libxi-dev libxrender-dev libxcb1-dev libxcb-glx0-dev \
             libxcb-keysyms1-dev libxcb-image0-dev libxcb-shm0-dev \
-            libxcb-icccm4-dev libxcb-sync1-dev libxcb-xfixes0-dev \
+            libxcb-icccm4-dev libxcb-sync0-dev libxcb-xfixes0-dev \
             libxcb-shape0-dev libxcb-randr0-dev libxcb-render-util0-dev \
             libxcb-util-dev libxcb-cursor0 \
             libglib2.0-dev libpulse-dev
@@ -89,14 +89,22 @@ jobs:
         with:
           arch: x64
 
-      - name: Install Qt6
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: '6.7.3'
-          host: 'windows'
-          target: 'desktop'
-          arch: 'win64_msvc2022_64'
-          modules: 'qtsvg'
+      - name: Install Qt6 via aqtinstall
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install aqtinstall
+          $qtDir = "$PWD\Qt"
+          New-Item -ItemType Directory -Force -Path $qtDir | Out-Null
+          # Install Qt 6.7.3 for MSVC 2022 x64 + qtsvg module
+          python -m aqt install-qt windows desktop 6.7.3 win64_msvc2022_64 -m qtsvg --outputdir $qtDir
+          # Set QT6_DIR for subsequent steps
+          $installedRoot = Get-ChildItem -Directory $qtDir | Where-Object { $_.Name -like "6.*" } | Select-Object -First 1
+          $msvcDir = Get-ChildItem -Directory $installedRoot.FullName | Select-Object -First 1
+          echo "Qt6_DIR=$($msvcDir.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          echo "PATH=$($msvcDir.FullName)\bin;$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Qt6_DIR set to: $($msvcDir.FullName)"
+          Get-ChildItem $msvcDir.FullName | Select-Object Name | Format-Table -AutoSize
 
       - name: Download FFmpeg shared build
         shell: pwsh
