@@ -41,7 +41,7 @@ public slots:
     void deleteSelectedClip();
 
 signals:
-    void clipSelected(int clipId);
+    void clipSelected(ClipModel* clip);
     void playheadChanged(double t);
 
 private slots:

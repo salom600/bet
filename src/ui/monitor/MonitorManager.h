@@ -6,6 +6,7 @@ namespace ve {
 
 class ClipMonitorWidget;
 class ProjectMonitor;
+class ClipModel;
 
 /// Manages focus / sync between the two monitors (Kdenlive-style).
 class MonitorManager : public QObject {
@@ -14,7 +15,7 @@ public:
     MonitorManager(ClipMonitorWidget* clip, ProjectMonitor* project, QObject* parent = nullptr);
 
 public slots:
-    void onTimelineSelectionChanged(int clipId);
+    void onTimelineSelectionChanged(ClipModel* clip);
 
 private:
     ClipMonitorWidget* clipMonitor_;

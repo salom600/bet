@@ -3,6 +3,7 @@
 #include "model/ClipModel.h"
 #include "model/BinClip.h"
 #include "model/TimelineModel.h"
+#include "model/TrackModel.h"
 #include "project/Project.h"
 
 #include <QPainter>

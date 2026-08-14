@@ -122,7 +122,8 @@ void TimelineWidget::rebuildTracks() {
             ci->setGeometry(x, 2, w, trackHeight_ - 4);
             ci->show();
             connect(ci, &ClipItem::selected, this, [this](int clipId) {
-                emit clipSelected(clipId);
+                auto c = project_->timeline()->clip(clipId);
+                emit clipSelected(c.get());
             });
         }
         tracksLayout_->addWidget(trackWidget);
@@ -180,7 +181,7 @@ void TimelineWidget::deleteSelectedClip() {
     ObjectId sel = tl->selectedClipId();
     if (sel == INVALID_ID) return;
     tl->requestItemDeletion(sel);
-    emit clipSelected(INVALID_ID);
+    emit clipSelected(nullptr);
 }
 
 QUndoStack* TimelineWidget::undoStack() const {
