@@ -25,7 +25,12 @@ endif()
 
 # ---- Find Qt6 ----------------------------------------------------------------
 find_package(Qt6 REQUIRED COMPONENTS Widgets Svg SvgWidgets Concurrent)
-qt_standard_project_setup()
+# qt_standard_project_setup() requires Qt 6.3+; we set the same vars manually
+# for compatibility with Ubuntu 22.04 (which ships Qt 6.2).
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # ---- Find FFmpeg -------------------------------------------------------------
 # Try pkg-config first (Linux), then fall back to manual hint lookup (Windows)
