@@ -155,17 +155,77 @@ jobs:
             $src = Join-Path $qtBin $dll
             if (Test-Path $src) { Copy-Item $src -Destination $stage -Force }
           }
+          # Copy MSVC runtime DLLs (REQUIRED — without these, the app crashes
+          # instantly on machines that don't have the Visual C++ Redistributable
+          # installed). Use the official redist layout if available.
+          $redistDir = $null
+          if ($env:VCToolsRedistDir) {
+            $crt = Join-Path $env:VCToolsRedistDir "x64\Microsoft.VC143.CRT"
+            if (Test-Path $crt) { $redistDir = $crt }
+          }
+          if (-not $redistDir -and $env:VCToolsInstallDir) {
+            $cand = Join-Path $env:VCToolsInstallDir "bin\Hostx64\x64"
+            if (Test-Path $cand) { $redistDir = $cand }
+          }
+          if ($redistDir) {
+            Write-Host "Copying MSVC runtime from: $redistDir"
+            foreach ($dll in @("MSVCP140.dll","MSVCP140_1.dll","MSVCP140_2.dll","VCRUNTIME140.dll","VCRUNTIME140_1.dll","CONCRT140.dll")) {
+              $src = Join-Path $redistDir $dll
+              if (Test-Path $src) {
+                Copy-Item $src -Destination $stage -Force
+                Write-Host "  Copied $dll"
+              }
+            }
+          } else {
+            Write-Warning "MSVC toolchain not found — runtime DLLs not bundled. App will crash on machines without VC++ Redist."
+          }
+          # Qt platform plugin (REQUIRED — without qwindows.dll, app crashes
+          # instantly with no visible window)
           New-Item -ItemType Directory -Force -Path "$stage\platforms" | Out-Null
           Copy-Item "$plugins\platforms\qwindows.dll"  "$stage\platforms\" -Force
+          # Qt style plugin
           New-Item -ItemType Directory -Force -Path "$stage\styles" | Out-Null
           Copy-Item "$plugins\styles\qwindowsvistastyle.dll" "$stage\styles\" -Force -ErrorAction SilentlyContinue
           # Copy all image format plugins (PNG, JPEG, etc.)
           New-Item -ItemType Directory -Force -Path "$stage\imageformats" | Out-Null
           if (Test-Path "$plugins\imageformats") {
-            Copy-Item "$plugins\imageformats\*.dll" "$stage\imageformats\" -Force -ErrorAction SilentlyContinue
+            # Copy only release variants (skip *d.dll debug variants to halve size)
+            Get-ChildItem "$plugins\imageformats\*.dll" | Where-Object { $_.Name -notmatch 'd\.dll$' } | ForEach-Object {
+              Copy-Item $_.FullName "$stage\imageformats\" -Force
+            }
           }
           # Resources
           Copy-Item -Path resources -Destination $stage -Recurse -Force
+          # Write qt.conf so Qt finds plugins reliably regardless of working directory
+          $qtConf = "[Paths]`r`nPlugins = .`r`nPrefix = .`r`n"
+          Set-Content -Path "$stage\qt.conf" -Value $qtConf -Encoding ascii -NoNewline
+          # Write a README.txt next to the .exe explaining how to run it
+          $readme = @"
+          VideoEditor v0.2.0
+          ==================
+
+          HOW TO RUN
+          ----------
+          Double-click VideoEditor.exe in THIS folder.
+
+          IMPORTANT: Do NOT move VideoEditor.exe out of this folder.
+          The .exe needs the DLLs (Qt6*.dll, av*.dll, MSVCP140.dll, etc.)
+          and the platforms/ subfolder to be in the same directory.
+
+          If the app crashes on launch:
+            1. Install the Microsoft Visual C++ Redistributable 2015-2022 (x64)
+               from https://aka.ms/vs/17/release/vc_redist.x64.exe
+            2. Make sure platforms\qwindows.dll exists next to VideoEditor.exe
+
+          TROUBLESHOOTING
+          ---------------
+          If you see "Entry point not found" errors, you have an outdated
+          MSVC runtime — install the latest VC++ Redistributable above.
+          "@
+          # Trim leading whitespace per line (caused by YAML indentation)
+          $readme = ($readme -split "`n" | ForEach-Object { $_.TrimStart() }) -join "`n"
+          Set-Content -Path "$stage\README-FIRST.txt" -Value $readme -Encoding utf8
+
           # Zip
           Compress-Archive -Path "$stage\*" -DestinationPath VideoEditor-windows.zip -Force
 
