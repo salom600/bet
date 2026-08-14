@@ -3,6 +3,7 @@
 #include <QPushButton>
 #include <QSlider>
 #include <QLabel>
+#include <functional>
 
 namespace ve {
 
@@ -13,18 +14,28 @@ Toolbar::Toolbar(QWidget* parent)
     layout->setContentsMargins(8, 6, 8, 6);
     layout->setSpacing(6);
 
-    auto* bImport  = makeBtn("Import",  "Import media files (Ctrl+I)", SIGNAL(importClicked()));
-    auto* bExport  = makeBtn("Export",  "Export / Render (Ctrl+E)",    SIGNAL(exportClicked()));
-    auto* bSkipS   = makeBtn("⏮",       "Skip to start",               SIGNAL(skipStartClicked()));
-    auto* bPlay    = makeBtn("▶",       "Play / Pause (Space)",        SIGNAL(playClicked()));
-    auto* bSkipE   = makeBtn("⏭",       "Skip to end",                 SIGNAL(skipEndClicked()));
-    auto* bStop    = makeBtn("⏹",       "Stop",                        SIGNAL(stopClicked()));
-    auto* bUndo    = makeBtn("↶",       "Undo (Ctrl+Z)",               SIGNAL(undoClicked()));
-    auto* bRedo    = makeBtn("↷",       "Redo (Ctrl+Y)",               SIGNAL(redoClicked()));
-    auto* bAddV    = makeBtn("+V",      "Add video track",             SIGNAL(addVideoTrack()));
-    auto* bAddA    = makeBtn("+A",      "Add audio track",             SIGNAL(addAudioTrack()));
-    auto* bZoomIn  = makeBtn("Zoom +",  "Zoom timeline in",            SIGNAL(zoomIn()));
-    auto* bZoomOut = makeBtn("Zoom −",  "Zoom timeline out",           SIGNAL(zoomOut()));
+    auto makeBtn = [this](const QString& text, const QString& tooltip, std::function<void()> cb) {
+        auto* b = new QPushButton(text, this);
+        b->setToolTip(tooltip);
+        b->setCursor(Qt::PointingHandCursor);
+        b->setFixedHeight(32);
+        b->setMinimumWidth(36);
+        connect(b, &QPushButton::clicked, this, [cb]() { cb(); });
+        return b;
+    };
+
+    auto* bImport  = makeBtn("Import",  "Import media files (Ctrl+I)", [this]() { emit importClicked(); });
+    auto* bExport  = makeBtn("Export",  "Export / Render (Ctrl+E)",    [this]() { emit exportClicked(); });
+    auto* bSkipS   = makeBtn(QStringLiteral("\u23EE"), "Skip to start", [this]() { emit skipStartClicked(); });
+    auto* bPlay    = makeBtn(QStringLiteral("\u25B6"), "Play / Pause (Space)", [this]() { emit playClicked(); });
+    auto* bSkipE   = makeBtn(QStringLiteral("\u23ED"), "Skip to end",   [this]() { emit skipEndClicked(); });
+    auto* bStop    = makeBtn(QStringLiteral("\u23F9"), "Stop",          [this]() { emit stopClicked(); });
+    auto* bUndo    = makeBtn(QStringLiteral("\u21B6"), "Undo (Ctrl+Z)", [this]() { emit undoClicked(); });
+    auto* bRedo    = makeBtn(QStringLiteral("\u21B7"), "Redo (Ctrl+Y)", [this]() { emit redoClicked(); });
+    auto* bAddV    = makeBtn("+V",      "Add video track", [this]() { emit addVideoTrack(); });
+    auto* bAddA    = makeBtn("+A",      "Add audio track", [this]() { emit addAudioTrack(); });
+    auto* bZoomIn  = makeBtn("Zoom +",  "Zoom timeline in",  [this]() { emit zoomIn(); });
+    auto* bZoomOut = makeBtn("Zoom \xE2\x88\x92", "Zoom timeline out", [this]() { emit zoomOut(); });
 
     layout->addWidget(bImport);
     layout->addWidget(bExport);
@@ -46,16 +57,6 @@ Toolbar::Toolbar(QWidget* parent)
 
     auto* brand = new QLabel("<b style='color:#5ac8fa'>VideoEditor</b>", this);
     layout->addWidget(brand);
-}
-
-QPushButton* Toolbar::makeBtn(const QString& text, const QString& tooltip, const char* signal) {
-    auto* b = new QPushButton(text, this);
-    b->setToolTip(tooltip);
-    b->setCursor(Qt::PointingHandCursor);
-    b->setFixedHeight(32);
-    b->setMinimumWidth(36);
-    connect(b, &QPushButton::clicked, this, signal);
-    return b;
 }
 
 } // namespace ve
