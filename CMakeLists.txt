@@ -23,7 +23,7 @@ if(NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
 endif()
 
 # ---- Find Qt6 ----------------------------------------------------------------
-find_package(Qt6 REQUIRED COMPONENTS Widgets Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Concurrent Xml)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
@@ -90,6 +90,7 @@ target_include_directories(VideoEditor PRIVATE
 target_link_libraries(VideoEditor PRIVATE
     Qt6::Widgets
     Qt6::Concurrent
+    Qt6::Xml
     ${FFMPEG_LIBS}
 )
 

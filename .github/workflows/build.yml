@@ -151,7 +151,7 @@ jobs:
           # Copy Qt6 plugins needed at runtime
           $qtBin = "$env:Qt6_DIR\bin"
           $plugins = "$env:Qt6_DIR\plugins"
-          foreach ($dll in @("Qt6Core.dll","Qt6Gui.dll","Qt6Widgets.dll","Qt6Network.dll")) {
+          foreach ($dll in @("Qt6Core.dll","Qt6Gui.dll","Qt6Widgets.dll","Qt6Network.dll","Qt6Xml.dll","Qt6Concurrent.dll")) {
             $src = Join-Path $qtBin $dll
             if (Test-Path $src) { Copy-Item $src -Destination $stage -Force }
           }
