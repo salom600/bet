@@ -62,7 +62,10 @@ MediaInfo MediaDecoder::probe(const QString& path) {
         return info;
     }
 
-    info.duration = rat2d(fmt->duration);
+    // AVFormatContext::duration is int64_t microseconds (or AV_NOPTS_VALUE).
+    if (fmt->duration > 0 && fmt->duration != AV_NOPTS_VALUE) {
+        info.duration = static_cast<double>(fmt->duration) / AV_TIME_BASE;
+    }
 
     for (unsigned i = 0; i < fmt->nb_streams; ++i) {
         AVStream* st = fmt->streams[i];
@@ -220,7 +223,10 @@ std::vector<float> MediaDecoder::audioPeaks(int peaksCount) {
         return peaks;
     }
 
-    double dur = rat2d(fmtCtx_->duration);
+    double dur = 0.0;
+    if (fmtCtx_->duration > 0 && fmtCtx_->duration != AV_NOPTS_VALUE) {
+        dur = static_cast<double>(fmtCtx_->duration) / AV_TIME_BASE;
+    }
     int64_t totalSamples = static_cast<int64_t>(audioCodec_->sample_rate * dur);
     if (totalSamples <= 0) totalSamples = peaksCount * 256; // fallback
 

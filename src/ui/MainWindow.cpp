@@ -83,22 +83,22 @@ MainWindow::MainWindow(QWidget* parent)
 }
 
 void MainWindow::setupActions() {
-    actNew_ = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::DocumentNew), "&New Project", this);
+    actNew_ = new QAction(QIcon::fromTheme(QStringLiteral("document-new")), "&New Project", this);
     actNew_->setShortcut(QKeySequence::New);
     connect(actNew_, &QAction::triggered, this, &MainWindow::newProject);
 
-    actOpen_ = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::DocumentOpen), "&Open Project...", this);
+    actOpen_ = new QAction(QIcon::fromTheme(QStringLiteral("document-open")), "&Open Project...", this);
     actOpen_->setShortcut(QKeySequence::Open);
     connect(actOpen_, &QAction::triggered, this, &MainWindow::loadProject);
 
-    actSave_ = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::DocumentSave), "&Save", this);
+    actSave_ = new QAction(QIcon::fromTheme(QStringLiteral("document-save")), "&Save", this);
     actSave_->setShortcut(QKeySequence::Save);
     connect(actSave_, &QAction::triggered, this, &MainWindow::saveProject);
 
-    actSaveAs_ = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::DocumentSaveAs), "Save &As...", this);
+    actSaveAs_ = new QAction(QIcon::fromTheme(QStringLiteral("document-save-as")), "Save &As...", this);
     connect(actSaveAs_, &QAction::triggered, this, &MainWindow::saveProjectAs);
 
-    actImport_ = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::ListAdd), "&Import Media...", this);
+    actImport_ = new QAction(QIcon::fromTheme(QStringLiteral("list-add")), "&Import Media...", this);
     actImport_->setShortcut(QKeySequence("Ctrl+I"));
     connect(actImport_, &QAction::triggered, this, [this]() {
         const QStringList files = QFileDialog::getOpenFileNames(
@@ -109,7 +109,7 @@ void MainWindow::setupActions() {
         if (!files.isEmpty()) importFiles(files);
     });
 
-    actExport_ = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::DocumentSend), "&Export / Render...", this);
+    actExport_ = new QAction(QIcon::fromTheme(QStringLiteral("document-send")), "&Export / Render...", this);
     actExport_->setShortcut(QKeySequence("Ctrl+E"));
     connect(actExport_, &QAction::triggered, this, &MainWindow::exportProject);
 
@@ -123,7 +123,7 @@ void MainWindow::setupActions() {
     actDelete_->setShortcutContext(Qt::ApplicationShortcut);
     connect(actDelete_, &QAction::triggered, timeline_, &TimelineWidget::deleteSelectedClip);
 
-    actPlay_ = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::MediaPlaybackStart), "Play/Pause", this);
+    actPlay_ = new QAction(QIcon::fromTheme(QStringLiteral("media-playback-start")), "Play/Pause", this);
     actPlay_->setShortcut(QKeySequence(Qt::Key_Space));
     actPlay_->setShortcutContext(Qt::ApplicationShortcut);
     connect(actPlay_, &QAction::triggered, preview_, &PreviewWidget::togglePlay);
@@ -200,7 +200,7 @@ void MainWindow::setupMenus() {
     fileMenu->addSeparator();
     fileMenu->addAction(actExport_);
     fileMenu->addSeparator();
-    fileMenu->addAction(QIcon::fromTheme(QIcon::ThemeIcon::ApplicationExit), "&Quit", qApp, &QApplication::quit,
+    fileMenu->addAction(QIcon::fromTheme(QStringLiteral("application-exit")), "&Quit", qApp, &QApplication::quit,
                         QKeySequence::Quit);
 
     auto* editMenu = menuBar()->addMenu("&Edit");

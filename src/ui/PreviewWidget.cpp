@@ -121,7 +121,7 @@ void PreviewWidget::paintEvent(QPaintEvent*) {
         // Maintain aspect ratio, scale to fit
         QSize sz = currentFrame_.size();
         sz.scale(width() - 20, height() - 20, Qt::KeepAspectRatio);
-        QRect dst((width() - sz.width()) / 2, (height() - sz.height()) / 2, sz);
+        QRect dst(QPoint((width() - sz.width()) / 2, (height() - sz.height()) / 2), sz);
         p.drawImage(dst, currentFrame_);
     } else {
         p.setPen(QColor(120, 120, 130));

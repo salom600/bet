@@ -24,7 +24,7 @@ if(NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
 endif()
 
 # ---- Find Qt6 ----------------------------------------------------------------
-find_package(Qt6 REQUIRED COMPONENTS Widgets Svg SvgWidgets Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Concurrent)
 # qt_standard_project_setup() requires Qt 6.3+; we set the same vars manually
 # for compatibility with Ubuntu 22.04 (which ships Qt 6.2).
 set(CMAKE_AUTOMOC ON)
@@ -96,8 +96,6 @@ target_include_directories(VideoEditor PRIVATE
 
 target_link_libraries(VideoEditor PRIVATE
     Qt6::Widgets
-    Qt6::Svg
-    Qt6::SvgWidgets
     Qt6::Concurrent
     ${FFMPEG_LIBS}
 )

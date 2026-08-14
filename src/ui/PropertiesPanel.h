@@ -6,6 +6,7 @@
 #include <QCheckBox>
 #include <QLabel>
 #include <QScrollArea>
+#include <QVBoxLayout>
 
 class QUndoStack;
 

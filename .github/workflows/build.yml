@@ -101,7 +101,7 @@ jobs:
           python -m aqt list-qt windows desktop
           $qtVersion = "6.8.1"
           Write-Host "Installing Qt $qtVersion ..."
-          python -m aqt install-qt windows desktop $qtVersion win64_msvc2022_64 -m qtsvg --outputdir $qtDir
+          python -m aqt install-qt windows desktop $qtVersion win64_msvc2022_64 --outputdir $qtDir
           # Set Qt6_DIR for subsequent steps
           $installedRoot = Get-ChildItem -Directory $qtDir | Where-Object { $_.Name -like "6.*" } | Select-Object -First 1
           $msvcDir = Get-ChildItem -Directory $installedRoot.FullName | Select-Object -First 1
@@ -151,7 +151,7 @@ jobs:
           # Copy Qt6 plugins needed at runtime
           $qtBin = "$env:Qt6_DIR\bin"
           $plugins = "$env:Qt6_DIR\plugins"
-          foreach ($dll in @("Qt6Core.dll","Qt6Gui.dll","Qt6Widgets.dll","Qt6Svg.dll","Qt6SvgWidgets.dll","Qt6Network.dll")) {
+          foreach ($dll in @("Qt6Core.dll","Qt6Gui.dll","Qt6Widgets.dll","Qt6Network.dll")) {
             $src = Join-Path $qtBin $dll
             if (Test-Path $src) { Copy-Item $src -Destination $stage -Force }
           }
@@ -159,10 +159,11 @@ jobs:
           Copy-Item "$plugins\platforms\qwindows.dll"  "$stage\platforms\" -Force
           New-Item -ItemType Directory -Force -Path "$stage\styles" | Out-Null
           Copy-Item "$plugins\styles\qwindowsvistastyle.dll" "$stage\styles\" -Force -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path "$stage\iconengines" | Out-Null
-          Copy-Item "$plugins\iconengines\qsvgicon.dll" "$stage\iconengines\" -Force -ErrorAction SilentlyContinue
+          # Copy all image format plugins (PNG, JPEG, etc.)
           New-Item -ItemType Directory -Force -Path "$stage\imageformats" | Out-Null
-          Copy-Item "$plugins\imageformats\qsvg.dll" "$stage\imageformats\" -Force -ErrorAction SilentlyContinue
+          if (Test-Path "$plugins\imageformats") {
+            Copy-Item "$plugins\imageformats\*.dll" "$stage\imageformats\" -Force -ErrorAction SilentlyContinue
+          }
           # Resources
           Copy-Item -Path resources -Destination $stage -Recurse -Force
           # Zip
