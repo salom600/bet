@@ -1,8 +1,8 @@
 #include "assets/EffectStackModel.h"
 #include "assets/EffectItemModel.h"
 
-#include <QDomDocument>
-#include <QDomElement>
+#include <QtXml/QDomDocument>
+#include <QtXml/QDomElement>
 
 namespace ve {
 

@@ -19,6 +19,7 @@
 #include "../undohelper.h"
 #include <QObject>
 #include <QList>
+#include <QtXml/QDomElement>
 #include <memory>
 
 namespace ve {

@@ -6,7 +6,7 @@
  */
 #pragma once
 
-#include <QDomElement>
+#include <QtXml/QDomElement>
 #include <QString>
 #include <QMap>
 

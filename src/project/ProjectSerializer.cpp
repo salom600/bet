@@ -13,8 +13,9 @@
 #include "definitions.h"
 
 #include <QFile>
-#include <QDomDocument>
-#include <QDomElement>
+#include <QtXml/QDomDocument>
+#include <QtXml/QDomElement>
+#include <QTextStream>
 #include <QDebug>
 
 namespace ve {
