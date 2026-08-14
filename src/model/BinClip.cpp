@@ -16,6 +16,10 @@ BinClip::BinClip(QString id, QString sourcePath, ClipType type, MediaInfo info, 
 {
 }
 
+QString BinClip::name() const {
+    return name_;
+}
+
 void BinClip::addRef(ObjectId clipId) {
     if (!referrers_.contains(clipId)) {
         referrers_.append(clipId);
