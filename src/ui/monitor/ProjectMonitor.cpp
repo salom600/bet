@@ -8,6 +8,7 @@
 
 #include <QPainter>
 #include <QPaintEvent>
+#include <QLinearGradient>
 
 namespace ve {
 
@@ -111,25 +112,62 @@ void ProjectMonitor::renderCurrentFrame() {
 
 void ProjectMonitor::paintEvent(QPaintEvent*) {
     QPainter p(this);
-    p.fillRect(rect(), QColor(15, 15, 18));
+    p.setRenderHint(QPainter::Antialiasing, true);
+
+    // Background gradient
+    QLinearGradient bg(rect().topLeft(), rect().bottomLeft());
+    bg.setColorAt(0, QColor(0x0d, 0x0e, 0x12));
+    bg.setColorAt(1, QColor(0x16, 0x18, 0x1c));
+    p.fillRect(rect(), bg);
+
     if (!currentFrame_.isNull()) {
         QSize sz = currentFrame_.size();
         sz.scale(width() - 20, height() - 40, Qt::KeepAspectRatio);
         QRect dst(QPoint((width() - sz.width()) / 2, 20), sz);
         p.drawImage(dst, currentFrame_);
+
+        // Draw subtle border around video frame
+        p.setPen(QColor(0, 0, 0, 180));
+        p.setBrush(Qt::NoBrush);
+        p.drawRect(dst.adjusted(-1, -1, 0, 0));
     } else {
         p.setPen(QColor(120, 120, 130));
-        QFont f = p.font(); f.setPointSize(14); p.setFont(f);
+        QFont f = p.font(); f.setPointSize(12); p.setFont(f);
         p.drawText(rect(), Qt::AlignCenter,
                    "No preview available.\nImport media and place clips on the timeline.");
     }
-    p.setPen(QColor(220, 220, 230));
-    QFont f = p.font(); f.setPointSize(10); p.setFont(f);
-    QString state = playing_ ? QStringLiteral("\u25B6") : QStringLiteral("\u23F8");
-    p.drawText(10, 16, QStringLiteral("PROJECT MONITOR  %1  %2s / %3s")
+
+    // Top overlay bar (monitor type + timecode)
+    QRect topBar(0, 0, width(), 20);
+    p.fillRect(topBar, QColor(0x1c, 0x1f, 0x25, 200));
+    p.setPen(QColor(0x5a, 0xc8, 0xfa));
+    QFont f = p.font(); f.setPointSize(9); f.setBold(true); p.setFont(f);
+    p.drawText(topBar.adjusted(8, 0, -8, 0), Qt::AlignLeft | Qt::AlignVCenter, "PROJECT MONITOR");
+
+    // Timecode on the right of top bar
+    QString state = playing_ ? QStringLiteral("\u25B6 ") : QStringLiteral("\u23F8 ");
+    QString tc = QString("%1%2s / %3s")
         .arg(state)
         .arg(playhead_, 0, 'f', 2)
-        .arg(timelineDuration(), 0, 'f', 2));
+        .arg(timelineDuration(), 0, 'f', 2);
+    p.setPen(QColor(0xe0, 0xe0, 0xe6));
+    p.drawText(topBar.adjusted(8, 0, -8, 0), Qt::AlignRight | Qt::AlignVCenter, tc);
+
+    // Bottom overlay: frame info
+    if (project_) {
+        QRect bottomBar(0, height() - 20, width(), 20);
+        p.fillRect(bottomBar, QColor(0x1c, 0x1f, 0x25, 200));
+        auto tl = project_->timeline();
+        int playheadFrame = tl->secondsToFrames(playhead_);
+        int totalFrames = tl->duration();
+        p.setPen(QColor(0x8a, 0x8d, 0x96));
+        QFont f2 = p.font(); f2.setPointSize(9); p.setFont(f2);
+        p.drawText(bottomBar.adjusted(8, 0, -8, 0), Qt::AlignLeft | Qt::AlignVCenter,
+                   QString("Frame: %1 / %2").arg(playheadFrame).arg(totalFrames));
+        // FPS on the right
+        p.drawText(bottomBar.adjusted(8, 0, -8, 0), Qt::AlignRight | Qt::AlignVCenter,
+                   QString("%1 fps").arg(tl->fps(), 0, 'f', 2));
+    }
 }
 
 } // namespace ve

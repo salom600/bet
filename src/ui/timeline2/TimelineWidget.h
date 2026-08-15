@@ -44,6 +44,10 @@ signals:
     void clipSelected(ClipModel* clip);
     void playheadChanged(double t);
 
+protected:
+    void dragEnterEvent(QDragEnterEvent* e) override;
+    void dropEvent(QDropEvent* e) override;
+
 private slots:
     void onStructureChanged();
 
@@ -56,8 +60,8 @@ private:
     Project* project_ = nullptr;
 
     double pps_ = 50.0;
-    int    headerWidth_ = 130;
-    int    trackHeight_ = 70;
+    int    headerWidth_ = 150;
+    int    trackHeight_ = 80;
 
     QWidget*      leftHeader_       = nullptr;
     QVBoxLayout*  leftHeaderLayout_ = nullptr;

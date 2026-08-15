@@ -6,8 +6,10 @@
 
 class QUndoStack;
 class QVBoxLayout;
-class QPushButton;
+class QToolButton;
 class QListWidget;
+class QLabel;
+class QScrollArea;
 
 namespace ve {
 
@@ -31,17 +33,22 @@ private slots:
 
 private:
     void rebuildList();
+    void rebuildParams();
 
     QUndoStack* undoStack_;
     ClipModel* clip_ = nullptr;
     std::shared_ptr<EffectStackModel> stack_;
 
-    QListWidget* list_ = nullptr;
-    QPushButton* btnAdd_ = nullptr;
-    QPushButton* btnRemove_ = nullptr;
-    QPushButton* btnUp_ = nullptr;
-    QPushButton* btnDown_ = nullptr;
-    QVBoxLayout* paramsLayout_ = nullptr;
+    QLabel*       titleLabel_  = nullptr;
+    QListWidget*  list_        = nullptr;
+    QToolButton*  btnAdd_      = nullptr;
+    QToolButton*  btnRemove_   = nullptr;
+    QToolButton*  btnUp_       = nullptr;
+    QToolButton*  btnDown_     = nullptr;
+    QScrollArea*  scroll_      = nullptr;
+    QWidget*      paramsContent_ = nullptr;
+    QVBoxLayout*  paramsLayout_ = nullptr;
+    QLabel*       emptyLabel_  = nullptr;
 };
 
 } // namespace ve

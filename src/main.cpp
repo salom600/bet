@@ -159,7 +159,7 @@ static void initLogFile() {
     QFile lf(g_logFilePath);
     if (lf.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
         QTextStream s(&lf);
-        s << "VideoEditor v0.2.3 starting at "
+        s << "VideoEditor v0.3.0 starting at "
           << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
         s << "Log file: " << g_logFilePath << "\n";
         s << "Temp dir: " << logDir << "\n";
@@ -206,7 +206,7 @@ int main(int argc, char* argv[]) {
         qDebug() << "QApplication constructed OK.";
         app.setApplicationName("VideoEditor");
         app.setOrganizationName("VideoEditor");
-        app.setApplicationVersion("0.2.3");
+        app.setApplicationVersion("0.3.0");
 
         // NOW it is safe to set the style (Fusion is built into Qt6Core,
         // no plugin needed).

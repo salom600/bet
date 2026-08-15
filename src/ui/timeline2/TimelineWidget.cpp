@@ -55,7 +55,7 @@ void TimelineWidget::setupUi() {
     rightLayoutV->setSpacing(0);
 
     ruler_ = new TimelineRuler(this);
-    ruler_->setFixedHeight(20);
+    ruler_->setFixedHeight(28);
     rightLayoutV->addWidget(ruler_);
     rightLayoutV->addWidget(tracksContainer_, 1);
 
@@ -66,10 +66,58 @@ void TimelineWidget::setupUi() {
     scrollArea_->setAcceptDrops(true);
     tracksContainer_->setAcceptDrops(true);
     rightArea_->setAcceptDrops(true);
+    setAcceptDrops(true);
 
     h->addWidget(leftHeader_);
     h->addWidget(scrollArea_, 1);
-    setMinimumHeight(220);
+    setMinimumHeight(280);
+}
+
+void TimelineWidget::dragEnterEvent(QDragEnterEvent* e) {
+    if (e->mimeData()->hasFormat("application/x-ve-binclip")) {
+        e->acceptProposedAction();
+    }
+}
+
+void TimelineWidget::dropEvent(QDropEvent* e) {
+    if (!e->mimeData()->hasFormat("application/x-ve-binclip")) return;
+    QString binClipId = QString::fromUtf8(e->mimeData()->data("application/x-ve-binclip"));
+    if (binClipId.isEmpty()) return;
+
+    auto tl = project_->timeline();
+    auto bin = project_->bin();
+    auto bc = bin->clip(binClipId);
+    if (!bc) return;
+
+    // Determine target track based on clip type
+    TrackType tt = TrackType::Video;
+    if (bc->type() == ClipType::Audio) tt = TrackType::Audio;
+    else if (bc->type() == ClipType::Image) tt = TrackType::Image;
+
+    // Find first track of matching type
+    ObjectId targetTrackId = INVALID_ID;
+    for (ObjectId tid : tl->trackIds()) {
+        auto t = tl->track(tid);
+        if (t && t->type() == tt && !t->isLocked()) { targetTrackId = tid; break; }
+    }
+    if (targetTrackId == INVALID_ID) {
+        // No matching track - create one
+        targetTrackId = tl->requestAddTrack(tt);
+    }
+
+    // Compute drop position in seconds from drop x coordinate
+    QPoint pos = e->position().toPoint();
+    // Need to map to scrollArea contents
+    QPoint mapped = scrollArea_->viewport()->mapFrom(this, pos);
+    double dropTime = xToTime(mapped.x() + scrollArea_->horizontalScrollBar()->value());
+    int dropFrame = tl->secondsToFrames(std::max(0.0, dropTime));
+
+    // Snap to playhead / existing clip edges
+    int snapped = tl->snap(dropFrame, static_cast<int>(snapTolerance() * tl->fps()));
+    if (snapped >= 0) dropFrame = snapped;
+
+    tl->requestClipInsertion(binClipId, targetTrackId, dropFrame);
+    e->acceptProposedAction();
 }
 
 void TimelineWidget::setProject(Project* project) {
@@ -102,9 +150,18 @@ void TimelineWidget::rebuildTracks() {
         header->setFixedHeight(trackHeight_);
         leftHeaderLayout_->addWidget(header);
 
+        // Track background color depends on type
+        QString trackBg = "#1d1f24";
+        QString trackBorder = "#2a2d33";
+        switch (t->type()) {
+            case TrackType::Video: trackBg = "#1a1f2a"; break;
+            case TrackType::Image: trackBg = "#221a2a"; break;
+            case TrackType::Audio: trackBg = "#1a2a22"; break;
+        }
+
         auto* trackWidget = new QWidget(tracksContainer_);
         trackWidget->setFixedHeight(trackHeight_);
-        trackWidget->setStyleSheet("background-color: #1d1f24; border: 1px solid #2a2d33;");
+        trackWidget->setStyleSheet(QString("background-color: %1; border-bottom: 1px solid %2;").arg(trackBg, trackBorder));
         trackWidget->setAcceptDrops(true);
 
         auto* clipLayout = new QHBoxLayout(trackWidget);
@@ -116,10 +173,10 @@ void TimelineWidget::rebuildTracks() {
             auto c = tl_model_clip(cid);
             if (!c) continue;
             auto* ci = new ClipItem(c, this, trackWidget);
-            ci->setFixedHeight(trackHeight_ - 4);
+            ci->setFixedHeight(trackHeight_ - 6);
             int x = timeToX(project_->timeline()->framesToSeconds(c->getPosition()));
-            int w = std::max(8, timeToX(project_->timeline()->framesToSeconds(c->getPlaytime())));
-            ci->setGeometry(x, 2, w, trackHeight_ - 4);
+            int w = std::max(12, timeToX(project_->timeline()->framesToSeconds(c->getPlaytime())));
+            ci->setGeometry(x, 3, w, trackHeight_ - 6);
             ci->show();
             connect(ci, &ClipItem::selected, this, [this](int clipId) {
                 auto c = project_->timeline()->clip(clipId);

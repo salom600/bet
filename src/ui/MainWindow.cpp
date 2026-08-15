@@ -205,8 +205,15 @@ void MainWindow::setupUi() {
     connect(toolbar_, &Toolbar::skipEndClicked, projectMonitor_, &ProjectMonitor::skipToEnd);
     connect(toolbar_, &Toolbar::undoClicked, actUndo_, &QAction::trigger);
     connect(toolbar_, &Toolbar::redoClicked, actRedo_, &QAction::trigger);
+    connect(toolbar_, &Toolbar::deleteClicked, actDelete_, &QAction::trigger);
     connect(toolbar_, &Toolbar::zoomIn,  timeline_, &TimelineWidget::zoomIn);
     connect(toolbar_, &Toolbar::zoomOut, timeline_, &TimelineWidget::zoomOut);
+    connect(toolbar_, &Toolbar::addVideoTrack, this, [this]() {
+        project_->timeline()->requestAddTrack(TrackType::Video);
+    });
+    connect(toolbar_, &Toolbar::addAudioTrack, this, [this]() {
+        project_->timeline()->requestAddTrack(TrackType::Audio);
+    });
 
     // Undo stack → dirty
     connect(project_->undoStack(), &QUndoStack::indexChanged, this, [this]() {
@@ -215,7 +222,37 @@ void MainWindow::setupUi() {
     });
 
     setAcceptDrops(true);
-    statusBar()->showMessage("Ready. Drag media files here, or use File → Import.");
+    // Status bar with permanent timecode display
+    auto* statusLeft = new QLabel("Ready. Drag media files here or use File → Import.");
+    statusBar()->addWidget(statusLeft);
+    // Permanent timecode label on the right
+    auto* timecodeLabel = new QLabel("00:00:00.00");
+    timecodeLabel->setStyleSheet("color: #5ac8fa; font-family: monospace; font-size: 10pt; padding: 0 12px;");
+    statusBar()->addPermanentWidget(timecodeLabel);
+    // Update timecode when playhead moves
+    connect(timeline_, &TimelineWidget::playheadChanged, this, [timecodeLabel](double t) {
+        int total = static_cast<int>(t);
+        int h = total / 3600;
+        int m = (total / 60) % 60;
+        int s = total % 60;
+        int f = static_cast<int>((t - total) * 30);
+        timecodeLabel->setText(QString("%1:%2:%3.%4")
+            .arg(h, 2, 10, QChar('0'))
+            .arg(m, 2, 10, QChar('0'))
+            .arg(s, 2, 10, QChar('0'))
+            .arg(f, 2, 10, QChar('0')));
+    });
+    // Selection info
+    connect(timeline_, &TimelineWidget::clipSelected, this, [statusLeft](ClipModel* clip) {
+        if (clip) {
+            auto bc = clip->binClip();
+            if (bc) {
+                statusLeft->setText(QString("Selected: %1").arg(bc->name()));
+            }
+        } else {
+            statusLeft->setText("No clip selected.");
+        }
+    });
 }
 
 void MainWindow::setupMenus() {

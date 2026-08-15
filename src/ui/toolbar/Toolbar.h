@@ -2,6 +2,11 @@
 
 #include <QWidget>
 
+class QPushButton;
+class QToolButton;
+class QLabel;
+class QFrame;
+
 namespace ve {
 
 class Toolbar : public QWidget {
@@ -20,6 +25,14 @@ signals:
     void redoClicked();
     void zoomIn();
     void zoomOut();
+    void addVideoTrack();
+    void addAudioTrack();
+    void deleteClicked();
+
+private:
+    QToolButton* makeIconButton(const QString& iconPath, const QString& tooltip,
+                                 const QString& text = QString());
+    QFrame* makeDivider();
 };
 
 } // namespace ve

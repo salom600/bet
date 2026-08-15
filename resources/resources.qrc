@@ -1,5 +1,28 @@
 <RCC>
     <qresource prefix="/">
         <file>styles/dark.qss</file>
+        <file alias="icons/import.svg">icons/import.svg</file>
+        <file alias="icons/export.svg">icons/export.svg</file>
+        <file alias="icons/play.svg">icons/play.svg</file>
+        <file alias="icons/pause.svg">icons/pause.svg</file>
+        <file alias="icons/stop.svg">icons/stop.svg</file>
+        <file alias="icons/skip-start.svg">icons/skip-start.svg</file>
+        <file alias="icons/skip-end.svg">icons/skip-end.svg</file>
+        <file alias="icons/undo.svg">icons/undo.svg</file>
+        <file alias="icons/redo.svg">icons/redo.svg</file>
+        <file alias="icons/zoom-in.svg">icons/zoom-in.svg</file>
+        <file alias="icons/zoom-out.svg">icons/zoom-out.svg</file>
+        <file alias="icons/delete.svg">icons/delete.svg</file>
+        <file alias="icons/add-video-track.svg">icons/add-video-track.svg</file>
+        <file alias="icons/add-audio-track.svg">icons/add-audio-track.svg</file>
+        <file alias="icons/lock.svg">icons/lock.svg</file>
+        <file alias="icons/mute.svg">icons/mute.svg</file>
+        <file alias="icons/hide.svg">icons/hide.svg</file>
+        <file alias="icons/image.svg">icons/image.svg</file>
+        <file alias="icons/video.svg">icons/video.svg</file>
+        <file alias="icons/save.svg">icons/save.svg</file>
+        <file alias="icons/open.svg">icons/open.svg</file>
+        <file alias="icons/new.svg">icons/new.svg</file>
+        <file alias="icons/film.svg">icons/film.svg</file>
     </qresource>
 </RCC>
