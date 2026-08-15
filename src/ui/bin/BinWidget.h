@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QWidget>
-#include <QListView>
 #include <QTreeView>
 #include <QStackedWidget>
 #include <QToolButton>
@@ -12,6 +11,7 @@ namespace ve {
 class BinModel;
 class BinClip;
 class BinItemDelegate;
+class BinIconView;
 
 class BinWidget : public QWidget {
     Q_OBJECT
@@ -35,7 +35,7 @@ private slots:
 private:
     std::shared_ptr<BinModel> bin_;
     QStackedWidget* stack_       = nullptr;
-    QListView*      iconView_    = nullptr;
+    BinIconView*    iconView_    = nullptr;
     QTreeView*      treeView_    = nullptr;
     BinItemDelegate* iconDelegate_ = nullptr;
     QToolButton* btnIconView_ = nullptr;

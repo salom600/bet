@@ -1,4 +1,5 @@
 #include "ui/bin/BinWidget.h"
+#include "ui/bin/BinIconView.h"
 #include "ui/bin/BinTreeView.h"
 #include "ui/bin/BinItemDelegate.h"
 #include "model/BinModel.h"
@@ -14,70 +15,10 @@
 #include <QLabel>
 #include <QToolButton>
 #include <QStackedWidget>
-#include <QListView>
 #include <QTreeView>
-#include <QMouseEvent>
 #include <QDebug>
-#include <QDrag>
-#include <QMimeData>
-#include <QApplication>
 
 namespace ve {
-
-// Custom QListView that supports drag of bin clips
-class BinIconView : public QListView {
-    Q_OBJECT
-public:
-    explicit BinIconView(QWidget* parent = nullptr) : QListView(parent) {
-        setViewMode(QListView::IconMode);
-        setGridSize(QSize(140, 120));
-        setIconSize(QSize(120, 80));
-        setMovement(QListView::Static);
-        setResizeMode(QListView::Adjust);
-        setUniformItemSizes(true);
-        setWordWrap(true);
-        setDragEnabled(true);
-        setAcceptDrops(false);
-        setSelectionMode(QAbstractItemView::SingleSelection);
-        setSelectionBehavior(QAbstractItemView::SelectRows);
-    }
-
-signals:
-    void clipActivated(const QString& binClipId);
-
-protected:
-    void mouseDoubleClickEvent(QMouseEvent* e) override {
-        QModelIndex ix = indexAt(e->pos());
-        if (ix.isValid() && ix.data(BinModel::TypeRole).toString() == "clip") {
-            emit clipActivated(ix.data(BinModel::IdRole).toString());
-        }
-        QListView::mouseDoubleClickEvent(e);
-    }
-
-    void startDrag(Qt::DropActions supportedActions) override {
-        QModelIndex ix = currentIndex();
-        if (!ix.isValid()) return;
-        if (ix.data(BinModel::TypeRole).toString() != "clip") return;
-        QString clipId = ix.data(BinModel::IdRole).toString();
-
-        auto* mime = new QMimeData;
-        mime->setData("application/x-ve-binclip", clipId.toUtf8());
-        auto* drag = new QDrag(this);
-        drag->setMimeData(mime);
-        // Set a drag pixmap from the clip thumbnail if available
-        QVariant thumbVar = ix.data(BinModel::ThumbnailRole);
-        if (thumbVar.isValid() && thumbVar.canConvert<QImage>()) {
-            QImage img = thumbVar.value<QImage>();
-            if (!img.isNull()) {
-                QPixmap pm = QPixmap::fromImage(img).scaled(120, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-                drag->setPixmap(pm);
-                drag->setHotSpot(QPoint(pm.width()/2, pm.height()/2));
-            }
-        }
-        drag->exec(Qt::CopyAction);
-        Q_UNUSED(supportedActions);
-    }
-};
 
 BinWidget::BinWidget(std::shared_ptr<BinModel> bin, QWidget* parent)
     : QWidget(parent)
@@ -98,7 +39,6 @@ BinWidget::BinWidget(std::shared_ptr<BinModel> bin, QWidget* parent)
     headerLayout->setContentsMargins(8, 6, 8, 6);
     headerLayout->setSpacing(4);
     auto* titleLabel = new QLabel("Project Bin", this);
-    titleLabel->setObjectName("panelHeader");
     titleLabel->setStyleSheet("font-weight: bold; color: #5ac8fa; font-size: 11pt; padding: 0;");
     headerLayout->addWidget(titleLabel);
     headerLayout->addStretch(1);
@@ -141,7 +81,6 @@ BinWidget::BinWidget(std::shared_ptr<BinModel> bin, QWidget* parent)
     headerLayout->addWidget(btnListView_);
 
     auto* headerWidget = new QWidget(this);
-    headerWidget->setObjectName("panelHeader");
     headerWidget->setStyleSheet("background-color: #1c1f25; border-bottom: 1px solid #2a2d33;");
     headerWidget->setLayout(headerLayout);
     v->addWidget(headerWidget);
@@ -179,8 +118,7 @@ BinWidget::BinWidget(std::shared_ptr<BinModel> bin, QWidget* parent)
 
     // Clip activation (double-click)
     connect(iconView_, &BinIconView::clipActivated, this, &BinWidget::clipActivated);
-    auto* tv = qobject_cast<BinTreeView*>(treeView_);
-    if (tv) connect(tv, &BinTreeView::clipActivated, this, &BinWidget::clipActivated);
+    connect(treeView_, &BinTreeView::clipActivated, this, &BinWidget::clipActivated);
 
     // Context menu on tree view
     treeView_->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -230,5 +168,3 @@ void BinWidget::onRemoveItem() {
 }
 
 } // namespace ve
-
-#include "BinWidget.moc"
