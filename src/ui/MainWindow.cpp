@@ -2,12 +2,17 @@
  * VideoEditor - MainWindow.cpp
  */
 #include "ui/MainWindow.h"
-#include "ui/toolbar/Toolbar.h"
+#include "ui/tabs/TopTabBar.h"
+#include "ui/tools/ToolStrip.h"
+#include "ui/transport/TransportBar.h"
+#include "ui/adjust/AdjustPanel.h"
 #include "ui/bin/BinWidget.h"
-#include "ui/bin/ClipMonitorWidget.h"
 #include "ui/monitor/ProjectMonitor.h"
-#include "ui/monitor/MonitorManager.h"
 #include "ui/timeline2/TimelineWidget.h"
+// Legacy (kept for menu actions, will be removed)
+#include "ui/toolbar/Toolbar.h"
+#include "ui/bin/ClipMonitorWidget.h"
+#include "ui/monitor/MonitorManager.h"
 #include "ui/effects/EffectStackView.h"
 #include "ui/properties/PropertiesPanel.h"
 #include "project/Project.h"
@@ -111,125 +116,122 @@ void MainWindow::setupActions() {
 }
 
 void MainWindow::setupUi() {
-    qDebug() << "setupUi: creating Toolbar...";
-    toolbar_       = new Toolbar(this);
+    qDebug() << "setupUi: creating TopTabBar...";
+    topTabBar_ = new TopTabBar(this);
+    qDebug() << "setupUi: creating ToolStrip...";
+    toolStrip_ = new ToolStrip(this);
     qDebug() << "setupUi: creating BinWidget...";
-    binWidget_     = new BinWidget(project_->bin(), this);
-    qDebug() << "setupUi: creating ClipMonitorWidget...";
-    clipMonitor_   = new ClipMonitorWidget(project_->bin(), this);
-    qDebug() << "setupUi: creating ProjectMonitor...";
+    binWidget_ = new BinWidget(project_->bin(), this);
+    qDebug() << "setupUi: creating ProjectMonitor (single center)...";
     projectMonitor_ = new ProjectMonitor(project_, this);
-    qDebug() << "setupUi: creating MonitorManager...";
-    monitorManager_ = new MonitorManager(clipMonitor_, projectMonitor_, this);
+    qDebug() << "setupUi: creating TransportBar...";
+    transportBar_ = new TransportBar(this);
+    qDebug() << "setupUi: creating AdjustPanel...";
+    adjustPanel_ = new AdjustPanel(this);
     qDebug() << "setupUi: creating TimelineWidget...";
-    timeline_      = new TimelineWidget(project_, this);
-    qDebug() << "setupUi: creating EffectStackView...";
-    effectStack_   = new EffectStackView(project_->undoStack(), this);
-    qDebug() << "setupUi: creating PropertiesPanel...";
-    properties_    = new PropertiesPanel(this);
+    timeline_ = new TimelineWidget(project_, this);
     qDebug() << "setupUi: all child widgets created.";
 
-    // Layout: top row = clip monitor + project monitor; bottom row = timeline
-    auto* topRow = new QSplitter(Qt::Horizontal);
-    topRow->addWidget(clipMonitor_);
-    topRow->addWidget(projectMonitor_);
-    topRow->setStretchFactor(0, 1);
-    topRow->setStretchFactor(1, 1);
+    // --- Center column: preview + transport ---
+    auto* centerCol = new QWidget;
+    auto* centerLayout = new QVBoxLayout(centerCol);
+    centerLayout->setContentsMargins(0, 0, 0, 0);
+    centerLayout->setSpacing(0);
+    centerLayout->addWidget(projectMonitor_, 1);
+    centerLayout->addWidget(transportBar_);
 
-    auto* leftSplit = new QSplitter(Qt::Vertical);
-    leftSplit->addWidget(binWidget_);
-    leftSplit->addWidget(effectStack_);
-    leftSplit->setStretchFactor(0, 2);
-    leftSplit->setStretchFactor(1, 1);
-
-    auto* rightSplit = new QSplitter(Qt::Vertical);
-    rightSplit->addWidget(topRow);
-    rightSplit->addWidget(properties_);
-    rightSplit->setStretchFactor(0, 3);
-    rightSplit->setStretchFactor(1, 1);
-
+    // --- Main row: tool strip | bin | center | adjust ---
     auto* mainSplit = new QSplitter(Qt::Horizontal);
-    mainSplit->addWidget(leftSplit);
-    mainSplit->addWidget(rightSplit);
-    mainSplit->addWidget(timeline_);
-    mainSplit->setStretchFactor(0, 1);
-    mainSplit->setStretchFactor(1, 3);
-    mainSplit->setStretchFactor(2, 4);
+    mainSplit->addWidget(toolStrip_);
+    mainSplit->addWidget(binWidget_);
+    mainSplit->addWidget(centerCol);
+    mainSplit->addWidget(adjustPanel_);
+    mainSplit->setStretchFactor(0, 0);   // tool strip fixed
+    mainSplit->setStretchFactor(1, 1);   // bin
+    mainSplit->setStretchFactor(2, 3);   // center preview
+    mainSplit->setStretchFactor(3, 1);   // adjust
+    mainSplit->setSizes({48, 250, 800, 300});
+
+    // --- Vertical split: main row on top, timeline on bottom ---
+    auto* verticalSplit = new QSplitter(Qt::Vertical);
+    verticalSplit->addWidget(mainSplit);
+    verticalSplit->addWidget(timeline_);
+    verticalSplit->setStretchFactor(0, 3);
+    verticalSplit->setStretchFactor(1, 2);
+    verticalSplit->setSizes({600, 400});
 
     auto* central = new QWidget;
     auto* v = new QVBoxLayout(central);
     v->setContentsMargins(0, 0, 0, 0);
     v->setSpacing(0);
-    v->addWidget(toolbar_);
-    v->addWidget(mainSplit, 1);
+    v->addWidget(topTabBar_);
+    v->addWidget(verticalSplit, 1);
 
     setCentralWidget(central);
     qDebug() << "setupUi: layout assembled, central widget set.";
 
-    // Wire bin → clip monitor
-    connect(binWidget_, &BinWidget::clipActivated, clipMonitor_, &ClipMonitorWidget::loadBinClip);
-    // Wire bin drag → timeline drop
-    connect(binWidget_, &BinWidget::clipDroppedOnTimeline, this,
-        [this](const QString& binClipId, int position) {
-            // Insert on first track of matching type
-            auto bc = project_->bin()->clip(binClipId);
-            if (!bc) return;
-            TrackType tt = TrackType::Video;
-            if (bc->type() == ClipType::Audio) tt = TrackType::Audio;
-            else if (bc->type() == ClipType::Image) tt = TrackType::Image;
-            for (ObjectId tid : project_->timeline()->trackIds()) {
-                auto t = project_->timeline()->track(tid);
-                if (t && t->type() == tt) {
-                    project_->timeline()->requestClipInsertion(binClipId, tid, position);
-                    break;
-                }
-            }
-        });
+    // --- Wire signals ---
 
-    // Wire timeline selection → properties + effect stack
-    connect(timeline_, &TimelineWidget::clipSelected, properties_, &PropertiesPanel::setClip);
-    connect(timeline_, &TimelineWidget::clipSelected, effectStack_, &EffectStackView::setClip);
-    connect(timeline_, &TimelineWidget::clipSelected, monitorManager_, &MonitorManager::onTimelineSelectionChanged);
+    // Top tab bar → switch panel content (future: per-tab panel switching)
+    connect(topTabBar_, &TopTabBar::tabChanged, this, [this](TopTabBar::Tab t) {
+        onTabChanged(static_cast<int>(t));
+    });
 
-    // Wire timeline playhead → project monitor
-    connect(timeline_, &TimelineWidget::playheadChanged, projectMonitor_, &ProjectMonitor::setPlayhead);
+    // Tool strip → change cursor / behavior
+    connect(toolStrip_, &ToolStrip::toolChanged, this, [this](ToolStrip::Tool t) {
+        onToolChanged(static_cast<int>(t));
+    });
+
+    // Transport bar → playback
+    connect(transportBar_, &TransportBar::playClicked, projectMonitor_, &ProjectMonitor::togglePlay);
+    connect(transportBar_, &TransportBar::skipStartClicked, projectMonitor_, &ProjectMonitor::skipToStart);
+    connect(transportBar_, &TransportBar::skipEndClicked, projectMonitor_, &ProjectMonitor::skipToEnd);
+    connect(transportBar_, &TransportBar::playheadMoved, projectMonitor_, &ProjectMonitor::setPlayhead);
+
+    // Project monitor → transport bar (timecode update)
+    connect(projectMonitor_, &ProjectMonitor::playheadMoved, transportBar_, &TransportBar::setPlayhead);
     connect(projectMonitor_, &ProjectMonitor::playheadMoved, timeline_, &TimelineWidget::setPlayhead);
     connect(projectMonitor_, &ProjectMonitor::playbackTicked, timeline_, &TimelineWidget::setPlayhead);
 
-    // Toolbar
-    connect(toolbar_, &Toolbar::importClicked, actImport_, &QAction::trigger);
-    connect(toolbar_, &Toolbar::exportClicked, actExport_, &QAction::trigger);
-    connect(toolbar_, &Toolbar::playClicked, projectMonitor_, &ProjectMonitor::togglePlay);
-    connect(toolbar_, &Toolbar::stopClicked, projectMonitor_, &ProjectMonitor::stop);
-    connect(toolbar_, &Toolbar::skipStartClicked, projectMonitor_, &ProjectMonitor::skipToStart);
-    connect(toolbar_, &Toolbar::skipEndClicked, projectMonitor_, &ProjectMonitor::skipToEnd);
-    connect(toolbar_, &Toolbar::undoClicked, actUndo_, &QAction::trigger);
-    connect(toolbar_, &Toolbar::redoClicked, actRedo_, &QAction::trigger);
-    connect(toolbar_, &Toolbar::deleteClicked, actDelete_, &QAction::trigger);
-    connect(toolbar_, &Toolbar::zoomIn,  timeline_, &TimelineWidget::zoomIn);
-    connect(toolbar_, &Toolbar::zoomOut, timeline_, &TimelineWidget::zoomOut);
-    connect(toolbar_, &Toolbar::addVideoTrack, this, [this]() {
-        project_->timeline()->requestAddTrack(TrackType::Video);
-    });
-    connect(toolbar_, &Toolbar::addAudioTrack, this, [this]() {
-        project_->timeline()->requestAddTrack(TrackType::Audio);
+    // Timeline → project monitor (playhead sync)
+    connect(timeline_, &TimelineWidget::playheadChanged, projectMonitor_, &ProjectMonitor::setPlayhead);
+    connect(timeline_, &TimelineWidget::playheadChanged, transportBar_, &TransportBar::setPlayhead);
+
+    // Project monitor → transport bar (playing state)
+    connect(projectMonitor_, &ProjectMonitor::playheadMoved, this, [this](double) {
+        transportBar_->setPlaying(projectMonitor_->isPlaying());
     });
 
-    // Undo stack → dirty
+    // Project monitor → adjust panel (update scopes when frame changes)
+    connect(projectMonitor_, &ProjectMonitor::frameRendered, adjustPanel_, &AdjustPanel::updateScopes);
+
+    // Adjust panel → project monitor (re-render with new color grade)
+    connect(adjustPanel_, &AdjustPanel::gradeChanged, this, [this]() {
+        projectMonitor_->setColorGrade(adjustPanel_->grade());
+    });
+
+    // Set initial duration on transport bar
+    transportBar_->setDuration(projectMonitor_->playhead() > 0 ? projectMonitor_->playhead() : 0);
+    // Update duration when timeline changes
+    connect(project_->timeline().get(), &TimelineModel::structureChanged, this, [this]() {
+        double dur = project_->timeline()->framesToSeconds(project_->timeline()->duration());
+        transportBar_->setDuration(dur);
+    });
+
+    // Undo stack → dirty + window title
     connect(project_->undoStack(), &QUndoStack::indexChanged, this, [this]() {
         project_->setDirty(true);
         updateWindowTitle();
     });
 
     setAcceptDrops(true);
-    // Status bar with permanent timecode display
+
+    // Status bar with selection info (left) and timecode (right)
     auto* statusLeft = new QLabel("Ready. Drag media files here or use File → Import.");
     statusBar()->addWidget(statusLeft);
-    // Permanent timecode label on the right
     auto* timecodeLabel = new QLabel("00:00:00.00");
     timecodeLabel->setStyleSheet("color: #5ac8fa; font-family: monospace; font-size: 10pt; padding: 0 12px;");
     statusBar()->addPermanentWidget(timecodeLabel);
-    // Update timecode when playhead moves
     connect(timeline_, &TimelineWidget::playheadChanged, this, [timecodeLabel](double t) {
         int total = static_cast<int>(t);
         int h = total / 3600;
@@ -242,17 +244,45 @@ void MainWindow::setupUi() {
             .arg(s, 2, 10, QChar('0'))
             .arg(f, 2, 10, QChar('0')));
     });
-    // Selection info
     connect(timeline_, &TimelineWidget::clipSelected, this, [statusLeft](ClipModel* clip) {
         if (clip) {
             auto bc = clip->binClip();
-            if (bc) {
-                statusLeft->setText(QString("Selected: %1").arg(bc->name()));
-            }
+            if (bc) statusLeft->setText(QString("Selected: %1").arg(bc->name()));
         } else {
             statusLeft->setText("No clip selected.");
         }
     });
+
+    qDebug() << "setupUi: signals wired.";
+}
+
+void MainWindow::onTabChanged(int tabId) {
+    qDebug() << "Tab changed to:" << tabId;
+    // For now, the tab determines what the LEFT panel shows.
+    // In a future iteration we'll swap binWidget_ for a different widget
+    // per tab (Text library, Transitions library, etc.).
+    // For v0.4.0 we keep the bin visible but log the tab change.
+}
+
+void MainWindow::onToolChanged(int toolId) {
+    qDebug() << "Tool changed to:" << toolId;
+    // The tool determines cursor and click behavior on the timeline.
+    // For v0.4.0 we just set the cursor; razor tool will split clips in
+    // a future iteration.
+    switch (static_cast<ToolStrip::Tool>(toolId)) {
+        case ToolStrip::Tool::Select:
+            timeline_->setCursor(Qt::ArrowCursor);
+            break;
+        case ToolStrip::Tool::Move:
+            timeline_->setCursor(Qt::OpenHandCursor);
+            break;
+        case ToolStrip::Tool::Razor:
+            timeline_->setCursor(Qt::IBeamCursor);
+            break;
+        default:
+            timeline_->setCursor(Qt::ArrowCursor);
+            break;
+    }
 }
 
 void MainWindow::setupMenus() {

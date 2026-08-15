@@ -1,9 +1,7 @@
 /*
  * VideoEditor - MainWindow.h
- * Top-level window: hosts Bin (left), monitors (top), timeline (bottom),
- * EffectStack + Properties (right).
- *
- * Adapted from Kdenlive's src/mainwindow.h.
+ * CapCut-style layout: top tab bar + left tool strip + media bin (left) +
+ * large center preview + adjust panel (right) + timeline (bottom).
  */
 #pragma once
 
@@ -15,12 +13,16 @@ namespace ve {
 class Project;
 class Toolbar;
 class BinWidget;
-class ClipMonitorWidget;
 class ProjectMonitor;
-class MonitorManager;
 class TimelineWidget;
 class EffectStackView;
 class PropertiesPanel;
+class TopTabBar;
+class ToolStrip;
+class TransportBar;
+class AdjustPanel;
+class ClipMonitorWidget;
+class MonitorManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -46,15 +48,22 @@ private:
     void setupUi();
     void setupMenus();
     void updateWindowTitle();
+    void onTabChanged(int tabId);
+    void onToolChanged(int toolId);
 
     Project* project_ = nullptr;
 
+    // New CapCut-style components
+    TopTabBar*      topTabBar_    = nullptr;
+    ToolStrip*      toolStrip_    = nullptr;
+    BinWidget*      binWidget_    = nullptr;
+    ProjectMonitor* projectMonitor_ = nullptr;
+    TransportBar*   transportBar_ = nullptr;
+    AdjustPanel*    adjustPanel_  = nullptr;
+    TimelineWidget* timeline_     = nullptr;
+
+    // Legacy (kept for compatibility, will be removed)
     Toolbar*            toolbar_       = nullptr;
-    BinWidget*          binWidget_     = nullptr;
-    ClipMonitorWidget*  clipMonitor_   = nullptr;
-    ProjectMonitor*     projectMonitor_ = nullptr;
-    MonitorManager*     monitorManager_ = nullptr;
-    TimelineWidget*     timeline_      = nullptr;
     EffectStackView*    effectStack_   = nullptr;
     PropertiesPanel*    properties_    = nullptr;
 

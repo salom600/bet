@@ -5,6 +5,7 @@
 #include "model/ClipModel.h"
 #include "model/BinClip.h"
 #include "media/MediaBackend.h"
+#include "media/ColorGrader.h"
 
 #include <QPainter>
 #include <QPaintEvent>
@@ -67,6 +68,12 @@ void ProjectMonitor::stop() {
 void ProjectMonitor::skipToStart() { setPlayhead(0); }
 void ProjectMonitor::skipToEnd()   { setPlayhead(timelineDuration()); }
 
+void ProjectMonitor::setColorGrade(const ColorGrade& g) {
+    grade_ = g;
+    renderCurrentFrame();
+    update();
+}
+
 double ProjectMonitor::timelineDuration() const {
     return project_ ? project_->timeline()->framesToSeconds(project_->timeline()->duration()) : 0.0;
 }
@@ -91,23 +98,31 @@ void ProjectMonitor::renderCurrentFrame() {
         }
         if (best) break;
     }
-    if (!best) { currentFrame_ = QImage(); return; }
+    if (!best) { currentFrame_ = QImage(); rawFrame_ = QImage(); emit frameRendered(currentFrame_); return; }
 
     auto bc = best->binClip();
-    if (!bc) { currentFrame_ = QImage(); return; }
+    if (!bc) { currentFrame_ = QImage(); rawFrame_ = QImage(); emit frameRendered(currentFrame_); return; }
 
     double sourceTime = bc->duration() > 0
         ? (playhead_ - tl->framesToSeconds(best->getPosition()))
         : 0.0;
 
     if (bc->type() == ClipType::Image) {
-        currentFrame_ = QImage(bc->sourcePath());
+        rawFrame_ = QImage(bc->sourcePath());
     } else {
         auto backend = createDefaultBackend();
         if (backend->open(bc->sourcePath())) {
-            currentFrame_ = backend->grabFrame(sourceTime, width(), height());
+            rawFrame_ = backend->grabFrame(sourceTime, width(), height());
         }
     }
+
+    // Apply color grade
+    currentFrame_ = rawFrame_;
+    if (!currentFrame_.isNull() && !grade_.isDefault()) {
+        ColorGrader::apply(currentFrame_, grade_);
+    }
+
+    emit frameRendered(currentFrame_);
 }
 
 void ProjectMonitor::paintEvent(QPaintEvent*) {

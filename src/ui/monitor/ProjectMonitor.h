@@ -4,12 +4,15 @@
 #include <QImage>
 #include <QTimer>
 #include <QElapsedTimer>
+#include "model/ColorGrade.h"
 
 namespace ve {
 
 class Project;
 
 /// Project Monitor: shows the rendered timeline frame at the playhead position.
+/// Single large center preview (CapCut-style). Applies the color grade from
+/// AdjustPanel before displaying.
 class ProjectMonitor : public QWidget {
     Q_OBJECT
 public:
@@ -19,6 +22,12 @@ public:
 
     double playhead() const { return playhead_; }
     bool isPlaying() const { return playing_; }
+
+    /// Set the color grade to apply to preview frames.
+    void setColorGrade(const ColorGrade& g);
+
+    /// Get the last rendered frame (for scopes).
+    QImage currentFrame() const { return currentFrame_; }
 
 public slots:
     void setPlayhead(double t);
@@ -30,6 +39,7 @@ public slots:
 signals:
     void playheadMoved(double t);
     void playbackTicked(double t);
+    void frameRendered(const QImage& frame);
 
 protected:
     void paintEvent(QPaintEvent*) override;
@@ -42,6 +52,8 @@ private:
     double playhead_ = 0.0;
     bool   playing_  = false;
     QImage currentFrame_;
+    QImage rawFrame_;          // before color grade
+    ColorGrade grade_;
     QTimer tickTimer_;
     QElapsedTimer elapsed_;
     double playStartPlayhead_ = 0.0;

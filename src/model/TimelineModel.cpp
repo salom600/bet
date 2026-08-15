@@ -25,14 +25,17 @@ TimelineModel::TimelineModel(std::shared_ptr<BinModel> bin, QObject* parent)
     : QAbstractItemModel(parent)
     , m_bin(bin)
 {
-    // Seed the timeline with the minimum required tracks:
-    // 2 video + 2 image + 2 audio (per spec)
-    requestAddTrack(TrackType::Video);
-    requestAddTrack(TrackType::Video);
-    requestAddTrack(TrackType::Image);
-    requestAddTrack(TrackType::Image);
-    requestAddTrack(TrackType::Audio);
-    requestAddTrack(TrackType::Audio);
+    // Seed the timeline CapCut-style: 3 video tracks (V1, V2, V3) + 3 audio
+    // tracks (A1, A2, A3). V1 is the "main" video track at the bottom of the
+    // video stack; V3 is the top overlay track.
+    for (int i = 0; i < 3; ++i) {
+        ObjectId tid = requestAddTrack(TrackType::Video);
+        if (auto t = track(tid)) t->setName(QString("V%1").arg(i + 1));
+    }
+    for (int i = 0; i < 3; ++i) {
+        ObjectId tid = requestAddTrack(TrackType::Audio);
+        if (auto t = track(tid)) t->setName(QString("A%1").arg(i + 1));
+    }
 }
 
 TimelineModel::~TimelineModel() = default;
