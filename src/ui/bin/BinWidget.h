@@ -31,7 +31,6 @@ signals:
 private slots:
     void onAddFolder();
     void onRemoveItem();
-    void onToggleViewMode();
 
 private:
     std::shared_ptr<BinModel> bin_;
