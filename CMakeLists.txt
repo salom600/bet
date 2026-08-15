@@ -77,7 +77,7 @@ file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS
 )
 list(FILTER APP_SOURCES EXCLUDE REGEX "/main\\.cpp$")
 
-qt_add_executable(VideoEditor
+qt_add_executable(VideoEditor WIN32
     src/main.cpp
     ${APP_SOURCES}
 )
