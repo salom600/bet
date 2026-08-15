@@ -4,6 +4,7 @@
 #include <QListView>
 #include <QTreeView>
 #include <QStackedWidget>
+#include <QToolButton>
 #include <memory>
 
 namespace ve {
@@ -37,10 +38,10 @@ private:
     QListView*      iconView_    = nullptr;
     QTreeView*      treeView_    = nullptr;
     BinItemDelegate* iconDelegate_ = nullptr;
-    class QToolButton* btnIconView_ = nullptr;
-    class QToolButton* btnListView_ = nullptr;
-    class QToolButton* btnAddFolder_ = nullptr;
-    class QToolButton* btnRemove_ = nullptr;
+    QToolButton* btnIconView_ = nullptr;
+    QToolButton* btnListView_ = nullptr;
+    QToolButton* btnAddFolder_ = nullptr;
+    QToolButton* btnRemove_ = nullptr;
 };
 
 } // namespace ve

@@ -16,6 +16,7 @@
 #include <QStackedWidget>
 #include <QListView>
 #include <QTreeView>
+#include <QMouseEvent>
 #include <QDebug>
 #include <QDrag>
 #include <QMimeData>

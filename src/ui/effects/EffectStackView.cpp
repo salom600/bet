@@ -238,7 +238,7 @@ void EffectStackView::rebuildParams() {
             valueLbl->setText(QString::number(dv, 'f', 2));
             item->setParameter(param.name, dv);
         });
-        connect(spin, qOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+        connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
                 [slider, valueLbl, item, param](double v) {
             QSignalBlocker b(slider);
             slider->setValue(static_cast<int>(v * 100));

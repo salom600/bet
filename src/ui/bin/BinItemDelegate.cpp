@@ -5,6 +5,7 @@
 #include <QPainter>
 #include <QStyle>
 #include <QApplication>
+#include <QFileInfo>
 #include <QDebug>
 
 namespace ve {
