@@ -1,14 +1,14 @@
 #pragma once
 
 #include <QWidget>
+#include <QVBoxLayout>
+#include <QScrollArea>
+#include <QSlider>
+#include <QDoubleSpinBox>
+#include <QLabel>
+#include <QPushButton>
+#include <QHBoxLayout>
 #include "model/ColorGrade.h"
-
-class QVBoxLayout;
-class QScrollArea;
-class QSlider;
-class QDoubleSpinBox;
-class QLabel;
-class QPushButton;
 
 namespace ve {
 
@@ -55,7 +55,7 @@ private:
 
     void buildParamRows();
     ParamRow* makeRow(const QString& name, double minV, double maxV, double defV, int id);
-    class QHBoxLayout* makeRowLayout(ParamRow* r);
+    QHBoxLayout* makeRowLayout(ParamRow* r);
     void updateGradeFromRow(ParamRow& row);
 
     QVBoxLayout*  layout_       = nullptr;
