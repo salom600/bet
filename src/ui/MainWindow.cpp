@@ -47,11 +47,20 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , project_(new Project(this))
 {
+    qDebug() << "MainWindow: setting minimum size...";
     setMinimumSize(1440, 900);
+    qDebug() << "MainWindow: calling setupUi()...";
     setupUi();        // creates child widgets first
+    qDebug() << "MainWindow: setupUi() done.";
+    qDebug() << "MainWindow: calling setupActions()...";
     setupActions();   // then wires actions to those widgets
+    qDebug() << "MainWindow: setupActions() done.";
+    qDebug() << "MainWindow: calling setupMenus()...";
     setupMenus();
+    qDebug() << "MainWindow: setupMenus() done.";
+    qDebug() << "MainWindow: calling updateWindowTitle()...";
     updateWindowTitle();
+    qDebug() << "MainWindow: construction complete.";
 }
 
 void MainWindow::setupActions() {
@@ -102,14 +111,23 @@ void MainWindow::setupActions() {
 }
 
 void MainWindow::setupUi() {
+    qDebug() << "setupUi: creating Toolbar...";
     toolbar_       = new Toolbar(this);
+    qDebug() << "setupUi: creating BinWidget...";
     binWidget_     = new BinWidget(project_->bin(), this);
+    qDebug() << "setupUi: creating ClipMonitorWidget...";
     clipMonitor_   = new ClipMonitorWidget(project_->bin(), this);
+    qDebug() << "setupUi: creating ProjectMonitor...";
     projectMonitor_ = new ProjectMonitor(project_, this);
+    qDebug() << "setupUi: creating MonitorManager...";
     monitorManager_ = new MonitorManager(clipMonitor_, projectMonitor_, this);
+    qDebug() << "setupUi: creating TimelineWidget...";
     timeline_      = new TimelineWidget(project_, this);
+    qDebug() << "setupUi: creating EffectStackView...";
     effectStack_   = new EffectStackView(project_->undoStack(), this);
+    qDebug() << "setupUi: creating PropertiesPanel...";
     properties_    = new PropertiesPanel(this);
+    qDebug() << "setupUi: all child widgets created.";
 
     // Layout: top row = clip monitor + project monitor; bottom row = timeline
     auto* topRow = new QSplitter(Qt::Horizontal);
@@ -146,6 +164,7 @@ void MainWindow::setupUi() {
     v->addWidget(mainSplit, 1);
 
     setCentralWidget(central);
+    qDebug() << "setupUi: layout assembled, central widget set.";
 
     // Wire bin → clip monitor
     connect(binWidget_, &BinWidget::clipActivated, clipMonitor_, &ClipMonitorWidget::loadBinClip);

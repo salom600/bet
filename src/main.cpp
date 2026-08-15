@@ -120,6 +120,15 @@ static LONG WINAPI veCrashHandler(EXCEPTION_POINTERS* ep) {
             default:                            desc = "Unknown exception"; break;
         }
         s << "Description: " << desc << "\n";
+        // For access violations, the exception record has 2 extra params:
+        // [0] = 0=read, 1=write, 8=DEP execute;  [1] = address accessed.
+        if (code == EXCEPTION_ACCESS_VIOLATION && ep->ExceptionRecord->NumberParameters >= 2) {
+            ULONG_PTR op = ep->ExceptionRecord->ExceptionInformation[0];
+            ULONG_PTR addr = ep->ExceptionRecord->ExceptionInformation[1];
+            QString opStr = (op == 0) ? "READ" : (op == 1) ? "WRITE" : (op == 8) ? "DEP/EXECUTE" : QString("op=%1").arg(op);
+            s << "Access type: " << opStr << " at address 0x"
+              << QString::number(addr, 16).toUpper() << "\n";
+        }
         f.close();
     }
 
@@ -150,7 +159,7 @@ static void initLogFile() {
     QFile lf(g_logFilePath);
     if (lf.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
         QTextStream s(&lf);
-        s << "VideoEditor v0.2.2 starting at "
+        s << "VideoEditor v0.2.3 starting at "
           << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
         s << "Log file: " << g_logFilePath << "\n";
         s << "Temp dir: " << logDir << "\n";
@@ -166,23 +175,51 @@ int main(int argc, char* argv[]) {
     // Initialize log file FIRST so we capture everything that follows.
     initLogFile();
 
+    // Install Qt message handler EARLY, before QApplication, so we capture
+    // any Qt warnings during QApplication construction (e.g. missing plugin).
+    g_oldMessageHandler = qInstallMessageHandler(veMessageHandler);
+
+    // Write a startup marker to the log using only CRT (no Qt) so we know
+    // the handler is installed even if QApplication fails to construct.
+    {
+        QFile f(g_logFilePath);
+        if (f.open(QIODevice::Append | QIODevice::Text)) {
+            f.write("--- main() entered, message handler installed ---\n");
+            f.close();
+        }
+    }
+
 #ifdef Q_OS_WIN
-    // Install the Windows unhandled-exception filter (catches access violations etc.)
+    // Install the Windows unhandled exception filter (catches access violations etc.)
     SetUnhandledExceptionFilter(veCrashHandler);
 #endif
 
     try {
-        // Set default style early — Fusion is built into Qt6Core, no plugin needed.
-        QApplication::setStyle(QStyleFactory::create("Fusion"));
-
+        // Construct QApplication FIRST.
+        // Do NOT call QStyleFactory or any GUI function before this - that is a
+        // classic Qt crash cause. QStyleFactory::create internally queries
+        // QGuiApplication::style() and triggers GUI subsystem init; doing that
+        // before QApplication exists leads to access violations (0xC0000005)
+        // in qwindows.dll or Qt6Gui.dll.
+        qDebug() << "Constructing QApplication...";
         QApplication app(argc, argv);
+        qDebug() << "QApplication constructed OK.";
         app.setApplicationName("VideoEditor");
         app.setOrganizationName("VideoEditor");
-        app.setApplicationVersion("0.2.2");
+        app.setApplicationVersion("0.2.3");
 
-        // Install Qt message handler so qDebug / qWarning / qCritical / qFatal
-        // all go to our log file.
-        g_oldMessageHandler = qInstallMessageHandler(veMessageHandler);
+        // NOW it is safe to set the style (Fusion is built into Qt6Core,
+        // no plugin needed).
+        qDebug() << "Setting Fusion style...";
+        QStyle* fusionStyle = QStyleFactory::create("Fusion");
+        if (fusionStyle) {
+            QApplication::setStyle(fusionStyle);
+            qDebug() << "Style set OK (Fusion).";
+        } else {
+            qWarning() << "Fusion style not available; using Qt default style.";
+            // List available styles for diagnostics
+            qDebug() << "Available styles:" << QStyleFactory::keys();
+        }
 
         // Diagnostic info: log Qt version, plugin path, and where Qt is looking
         // for the platform plugin. This is the #1 cause of "opens then closes".
@@ -196,7 +233,7 @@ int main(int argc, char* argv[]) {
         qDebug() << "Current dir:            " << QDir::currentPath();
 
         // Verify the platform plugin exists. If it doesn't, Qt will qFatal()
-        // at QApplication construction — but our log will at least show what
+        // at QApplication construction - but our log will at least show what
         // was checked.
         QString platformsDir = QApplication::applicationDirPath() + "/platforms";
         qDebug() << "Looking for platform plugin at:" << platformsDir << "/qwindows.dll";
