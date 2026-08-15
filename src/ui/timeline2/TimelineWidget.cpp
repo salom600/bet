@@ -12,6 +12,9 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QPainter>
+#include <QDropEvent>
+#include <QDragEnterEvent>
+#include <QMimeData>
 #include <QDebug>
 #include <algorithm>
 
