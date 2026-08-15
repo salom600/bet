@@ -29,8 +29,13 @@ QModelIndex BinModel::index(int row, int column, const QModelIndex& parent) cons
     if (!parent.isValid()) {
         parentFolder = root_;
     } else {
-        QString id = parent.data(IdRole).toString();
-        parentFolder = folders_.value(id);
+        // Look up the parent folder by its internalPointer (avoid calling
+        // parent.data() which could cause reentrancy issues).
+        void* ptr = parent.internalPointer();
+        if (!ptr) return {};
+        for (const auto& f : folders_) {
+            if (static_cast<void*>(f.get()) == ptr) { parentFolder = f; break; }
+        }
         if (!parentFolder) return {};
     }
     if (row < parentFolder->folders().size()) {
@@ -47,34 +52,32 @@ QModelIndex BinModel::index(int row, int column, const QModelIndex& parent) cons
 
 QModelIndex BinModel::parent(const QModelIndex& child) const {
     if (!child.isValid()) return {};
-    // Try clip first
-    auto* clipPtr = static_cast<BinClip*>(child.internalPointer());
-    auto* folderPtr = static_cast<BinFolder*>(child.internalPointer());
+    void* ptr = child.internalPointer();
+    if (!ptr) return {};
 
-    std::shared_ptr<BinFolder> parent;
-    // We need to find which item this internalPointer refers to.
-    // Walk the tree to find the parent.
-    QString childId;
-    bool isFolder = false;
+    // Determine whether this pointer is a BinFolder or a BinClip by
+    // looking it up in our registries (no unsafe casts).
+    std::shared_ptr<BinFolder> folderItem;
     for (const auto& f : folders_) {
-        if (f.get() == folderPtr) { childId = f->id(); isFolder = true; break; }
+        if (static_cast<void*>(f.get()) == ptr) { folderItem = f; break; }
     }
-    if (childId.isEmpty()) {
+
+    std::shared_ptr<BinClip> clipItem;
+    if (!folderItem) {
         for (const auto& c : clips_) {
-            if (c.get() == clipPtr) { childId = c->id(); break; }
+            if (static_cast<void*>(c.get()) == ptr) { clipItem = c; break; }
         }
     }
-    if (childId.isEmpty()) return {};
+    if (!folderItem && !clipItem) return {};
 
-    if (isFolder) {
-        auto f = folders_.value(childId);
-        if (!f) return {};
-        parent = f->parent();
-    } else {
-        // For a clip, we need to find which folder contains it.
+    std::shared_ptr<BinFolder> parent;
+    if (folderItem) {
+        parent = folderItem->parent();
+    } else if (clipItem) {
+        // Find the folder that contains this clip
         for (const auto& f : folders_) {
             for (const auto& c : f->clips()) {
-                if (c->id() == childId) { parent = f; break; }
+                if (c.get() == clipItem.get()) { parent = f; break; }
             }
             if (parent) break;
         }
@@ -83,14 +86,18 @@ QModelIndex BinModel::parent(const QModelIndex& child) const {
     auto grand = parent->parent();
     if (!grand) return {};
     int row = grand->folders().indexOf(parent);
+    if (row < 0) return {};
     return createIndex(row, 0, parent.get());
 }
 
 int BinModel::rowCount(const QModelIndex& parent) const {
     if (!parent.isValid()) return root_->totalChildren();
-    QString id = parent.data(IdRole).toString();
-    auto f = folders_.value(id);
-    if (f) return f->totalChildren();
+    void* ptr = parent.internalPointer();
+    if (!ptr) return 0;
+    // Look up folder by raw pointer
+    for (const auto& f : folders_) {
+        if (static_cast<void*>(f.get()) == ptr) return f->totalChildren();
+    }
     return 0; // clips have no children
 }
 

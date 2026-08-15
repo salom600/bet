@@ -5,13 +5,16 @@
 #include <QMouseEvent>
 #include <QModelIndex>
 #include <QHeaderView>
+#include <QDebug>
 
 namespace ve {
 
 BinTreeView::BinTreeView(QWidget* parent)
     : QTreeView(parent)
 {
+    qDebug() << "BinTreeView: ctor entered";
     setDragEnabled(true);
+    qDebug() << "BinTreeView: setDragEnabled OK";
     setAcceptDrops(true);
     setDefaultDropAction(Qt::CopyAction);
     setSelectionMode(QAbstractItemView::SingleSelection);
@@ -19,8 +22,21 @@ BinTreeView::BinTreeView(QWidget* parent)
     setRootIsDecorated(true);
     setUniformRowHeights(true);
     setHeaderHidden(false);
-    header()->setStretchLastSection(true);
-    header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    qDebug() << "BinTreeView: basic settings OK";
+
+    // Configure header AFTER setting a model. QHeaderView::setSectionResizeMode
+    // requires a model to be set on the header; calling it before setModel()
+    // can trigger null-pointer derefs in Qt's internal layout recalculation.
+    // We defer the section resize mode configuration until after setModel()
+    // is called by BinWidget.
+
+    QHeaderView* hdr = header();
+    qDebug() << "BinTreeView: header() =" << hdr;
+    if (hdr) {
+        hdr->setStretchLastSection(true);
+        qDebug() << "BinTreeView: stretchLastSection set";
+    }
+    qDebug() << "BinTreeView: ctor complete";
 }
 
 void BinTreeView::mouseDoubleClickEvent(QMouseEvent* e) {
