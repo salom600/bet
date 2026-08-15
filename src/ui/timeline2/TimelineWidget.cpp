@@ -6,6 +6,8 @@
 #include "model/TimelineModel.h"
 #include "model/TrackModel.h"
 #include "model/ClipModel.h"
+#include "model/BinClip.h"
+#include "model/BinModel.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
