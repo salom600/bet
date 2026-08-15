@@ -12,6 +12,7 @@ class BinModel;
 class BinClip;
 class BinItemDelegate;
 class BinIconView;
+class BinTreeView;
 
 class BinWidget : public QWidget {
     Q_OBJECT
@@ -36,7 +37,7 @@ private:
     std::shared_ptr<BinModel> bin_;
     QStackedWidget* stack_       = nullptr;
     BinIconView*    iconView_    = nullptr;
-    QTreeView*      treeView_    = nullptr;
+    BinTreeView*    treeView_    = nullptr;
     BinItemDelegate* iconDelegate_ = nullptr;
     QToolButton* btnIconView_ = nullptr;
     QToolButton* btnListView_ = nullptr;
